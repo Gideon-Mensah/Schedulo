@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Shifts{% endblock %}
+
+{% block content %}
+
+<style>
+  /* Modern, soft UI */
+  .card-soft { border: 1px solid rgba(0,0,0,.06); border-radius: 16px; }
+  .shadow-soft { box-shadow: 0 6px 24px rgba(0,0,0,.06); }
+  .accent { color: #4f46e5; } /* indigo-ish accent */
+  .chip { background: rgba(79,70,229,0.08); color: #3f3bbf; border-radius: 999px; padding: .25rem .6rem; font-size: .75rem; }
+  .btn-soft { background: #f6f7ff; border: 1px solid #e8e8ff; color: #3730a3; }
+  .btn-soft:hover { background: #eef0ff; }
+  .input-pill { border-radius: 999px; }
+  .section-title { font-weight: 600; }
+  .list-hover .list-group-item { transition: background .15s ease; }
+  .list-hover .list-group-item:hover { background: #fafafc; }
+</style>
+
+<div class="container py-4">
+
+  <!-- Top metrics -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card card-soft shadow-soft">
+        <div class="card-body">
+          <div class="text-muted small">Total Shifts</div>
+          <div class="fs-4 fw-semibold">{{ total_shifts }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card card-soft shadow-soft">
+        <div class="card-body">
+          <div class="text-muted small">Upcoming (any)</div>
+          <div class="fs-4 fw-semibold">{{ available_upcoming }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card card-soft shadow-soft">
+        <div class="card-body">
+          <div class="text-muted small">Upcoming (booked)</div>
+          <div class="fs-4 fw-semibold">{{ booked_upcoming }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card card-soft shadow-soft">
+        <div class="card-body">
+          <div class="text-muted small">Users</div>
+          <div class="fs-4 fw-semibold">{{ total_users }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card card-soft shadow-soft mb-4">
+    <div class="card-body">
+      <form method="get" class="row gy-3 gx-3 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label mb-1">Shift title</label>
+          <input type="text" name="title_q" class="form-control input-pill"
+                 placeholder="e.g. Morning Care"
+                 value="{{ title_q }}">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label mb-1">Role</label>
+          <select name="role" class="form-select input-pill">
+            <option value="">Any</option>
+            <option value="Care" {% if role_q == 'Care' %}selected{% endif %}>Care</option>
+            <option value="Cleaning" {% if role_q == 'Cleaning' %}selected{% endif %}>Cleaning</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label mb-1">Start date</label>
+          <input type="date" name="start" class="form-control input-pill" value="{{ start_q }}">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label mb-1">End date</label>
+          <input type="date" name="end" class="form-control input-pill" value="{{ end_q }}">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label mb-1">Only with space</label>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="only_open" id="only_open" value="1" {% if only_open %}checked{% endif %}>
+            <label class="form-check-label" for="only_open">Not full</label>
+          </div>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label mb-1">Search users</label>
+          <div class="input-group">
+            <span class="input-group-text input-pill"><i class="bi bi-search"></i></span>
+            <input type="text" name="user_q" class="form-control input-pill"
+                   placeholder="Name / username / email" value="{{ user_q }}">
+          </div>
+          <div class="form-text">Filters the Book-for-User dropdowns below.</div>
+        </div>
+        <div class="col-12 col-md-2">
+          <button class="btn btn-primary w-100 input-pill">Apply</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Upcoming shifts + book for user -->
+    <div class="col-lg-6">
+      <div class="card card-soft shadow-soft">
+        <div class="card-header bg-white border-0">
+          <h5 class="m-0 section-title">Upcoming Shifts</h5>
+          <div class="text-muted small">Book a user directly onto a shift</div>
+        </div>
+        <div class="card-body">
+          {% if upcoming_shifts %} 
+            <div class="list-group list-hover">
+              {% for sh in upcoming_shifts %}
+                <div class="list-group-item border-0">
+                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                      <div class="fw-semibold">{{ sh.title }}</div>
+                      <div class="text-muted small">
+                        {{ sh.date }}{% if sh.start_time %}, {{ sh.start_time }}{% endif %}
+                        {% if sh.end_time %} – {{ sh.end_time }}{% endif %}
+                        · Role: <span class="chip">{{ sh.get_role_display }}</span>
+                        {% if sh.allowed_postcode %} · PC: <span class="chip">{{ sh.allowed_postcode }}</span>{% endif %}
+                      </div>
+                      <div class="small mt-1">
+                        <span class="chip">Booked {{ sh.booked_total|default:0 }}/{{ sh.max_staff }}</span>
+                      </div>
+                    </div>
+
+                    <form method="post" action="{% url 'admin_book_for_user' %}" class="d-flex gap-2 align-items-center flex-wrap">
+                      {% csrf_token %}
+                      <input type="hidden" name="shift_id" value="{{ sh.id }}">
+
+                      <!-- Live filterable user select (filtered by global user_q server-side; extra client filter below) -->
+                      
+                      {# inside each shift card, replace the <select> block #}
+                      <div class="d-flex flex-column">
+                        <input type="text" class="form-control form-control-sm input-pill mb-2"
+                              placeholder="Quick filter users…" oninput="filterSelectOptions(this, 'select-users-{{ sh.id }}')">
+
+                        <select id="select-users-{{ sh.id }}" name="user_id" class="form-select" style="min-width: 280px;">
+                          {% for u, ok in sh.user_rows %}
+                            <option value="{{ u.id }}"
+                                    data-label="{{ u.get_full_name|default:u.username }} {{ u.username }} {{ u.email }}"
+                                    {% if not ok %}disabled data-noncompliant="1"{% endif %}>
+                              {% if u.get_full_name %}{{ u.get_full_name }} ({{ u.username }}){% else %}{{ u.username }}{% endif %}
+                              {% if ok %} — ✅ compliant{% else %} — ⚠️ not compliant{% endif %}
+                            </option>
+                          {% endfor %}
+                        </select>
+
+                        <div class="form-text mt-1">
+                          ✅ compliant users are selectable. ⚠️ non-compliant users are disabled by default.
+                        </div>
+
+                        {# Optional override UI (maps to view's 'override' + 'reason') #}
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                          <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                  id="ov-{{ sh.id }}"
+                                  onclick="this.closest('form').querySelector('[name=override]').value = this.checked ? '1' : '0'">
+                            <label for="ov-{{ sh.id }}" class="form-check-label small">Override compliance</label>
+                          </div>
+                          <input type="hidden" name="override" value="0">
+                          <input type="text" name="reason" class="form-control form-control-sm input-pill"
+                                placeholder="Reason (required for overrides)" style="max-width: 260px;">
+                        </div>
+                      </div>
+
+
+                      <button class="btn btn-soft">Book</button>
+                    </form>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted m-0">No upcoming shifts match your filters.</p>
+          {% endif %} 
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent bookings with admin actions -->
+    <div class="col-lg-6">
+      <div class="card card-soft shadow-soft">
+        <div class="card-header bg-white border-0">
+          <h5 class="m-0 section-title">Recent / Current Bookings</h5>
+          <div class="text-muted small">Manage bookings & clock users in/out</div>
+        </div>
+        <div class="card-body">
+          {% if recent_bookings %}
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>User</th>
+                    <th>Shift</th>
+                    <th>When</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for b in recent_bookings %}
+                    <tr>
+                      <td>{{ b.user.get_full_name|default:b.user.username }}</td>
+                      <td>
+                        <div class="fw-semibold">{{ b.shift.title }}</div>
+                        <div class="text-muted small">{{ b.shift.date }}</div>
+                      </td>
+                      <td class="small">
+                        {% if b.shift.start_time %}Start: {{ b.shift.start_time }}<br>{% endif %}
+                        {% if b.shift.end_time %}End: {{ b.shift.end_time }}{% endif %}
+                      </td>
+                      <td class="small">
+                        {% if b.clock_in_at %}<span class="badge text-bg-success">In</span>{% else %}<span class="badge text-bg-secondary">Not In</span>{% endif %}
+                        {% if b.clock_out_at %}<span class="badge text-bg-dark">Out</span>{% endif %}
+                      </td>
+                      <td class="text-end">
+                        <!-- Cancel -->
+                        <form method="post" action="{% url 'admin_cancel_booking_admin' b.id %}" class="d-inline">
+                          {% csrf_token %}
+                          <button class="btn btn-link text-danger p-0 me-3" onclick="return confirm('Cancel this booking?')">Cancel</button>
+                        </form>
+
+                        <!-- Clock In (with override + reason) -->
+                        {% if not b.clock_in_at %}
+                          <form method="post" action="{% url 'admin_clock_in_for_user' b.id %}" class="d-inline-flex gap-2 align-items-center">
+                            {% csrf_token %}
+                            <input type="hidden" name="override" value="0">
+                            <input type="text" name="reason" class="form-control form-control-sm input-pill" placeholder="Reason (optional)" style="width: 180px;">
+                            <div class="form-check form-check-inline">
+                              <input class="form-check-input" type="checkbox" id="in-ov-{{ b.id }}" onclick="this.form.override.value = this.checked ? '1' : '0'">
+                              <label class="form-check-label small" for="in-ov-{{ b.id }}">Override</label>
+                            </div>
+                            <button class="btn btn-sm btn-primary input-pill">Clock In</button>
+                          </form>
+                        {% endif %}
+
+                        <!-- Clock Out -->
+                        {% if b.clock_in_at and not b.clock_out_at %}
+                          <form method="post" action="{% url 'admin_clock_out_for_user' b.id %}" class="d-inline-flex gap-2 align-items-center mt-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="override" value="0">
+                            <input type="text" name="reason" class="form-control form-control-sm input-pill" placeholder="Reason (optional)" style="width: 180px;">
+                            <div class="form-check form-check-inline">
+                              <input class="form-check-input" type="checkbox" id="out-ov-{{ b.id }}" onclick="this.form.override.value = this.checked ? '1' : '0'">
+                              <label class="form-check-label small" for="out-ov-{{ b.id }}">Override</label>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary input-pill">Clock Out</button>
+                          </form>
+                        {% endif %}
+
+                        {% if b.clock_in_at and b.clock_out_at and not b.paid_at %}
+                          <form method="post" action="{% url 'admin_mark_booking_paid' b.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button class="btn btn-sm btn-success">Mark paid</button>
+                          </form>
+                        {% elif b.paid_at %}
+                          <span class="badge text-bg-success">Paid</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="text-muted m-0">No recent bookings.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Client-side filter for each user <select>, super fast even with 500 options.
+  function filterSelectOptions(input, selectId) {
+    const q = (input.value || "").toLowerCase().trim();
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const opts = sel.querySelectorAll("option");
+    for (const opt of opts) {
+      const label = (opt.getAttribute("data-label") || opt.textContent || "").toLowerCase();
+      opt.hidden = q && !label.includes(q);
+    }
+
+    // Ensure the first visible option gets selected so submit works smoothly
+    const firstVisible = Array.from(opts).find(o => !o.hidden);
+    if (firstVisible) {
+      sel.value = firstVisible.value;
+    }
+  }
+</script>
+{% endblock %}

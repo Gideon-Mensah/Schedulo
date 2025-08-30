@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Completed Shift - Home
+{% endblock %}
+
+{% block content %}
+  <div class="soft-accent rounded-4 p-4 mb-4">
+    <h3 class="pt-5 text-center">Completed Shifts</h3>
+
+    <div class="row justify-content-center mt-4">
+      <h4>My Day</h4>
+      <p class="text-muted">
+        {% now 'jS F Y' %}
+      </p>
+
+      <div class="col-md-7 col-lg-7" style="height: 450px; overflow: auto;">
+        {% for booking in bookings %}
+          <div class="card m-1">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">
+                  {{ booking.shift.title }} — {{ booking.shift.date }}
+                  {% if booking.shift.start_time and booking.shift.end_time %}
+                    ({{ booking.shift.start_time }}–{{ booking.shift.end_time }})
+                  {% endif %}
+                  <span class="badge text-bg-success">Clocked in: {{ booking.clock_in_at|date:'M j, H:i' }}</span>
+                  <span class="badge text-bg-secondary">Clocked out: {{ booking.clock_out_at|date:'M j, H:i' }}</span>
+                </div>
+              </div>
+
+              <!--   <a href="" class="btn btn-success">
+                <i class="fa fa-check"></i> Book Shift
+              </a>   -->
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

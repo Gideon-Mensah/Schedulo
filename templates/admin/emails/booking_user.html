@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#0f172a;">
+    <div style="max-width:620px;margin:0 auto;padding:24px;">
+      <h2 style="margin:0 0 12px;">You're booked 🎉</h2>
+      <p style="margin:0 0 16px;">
+        Hi {{ user.get_full_name|default:user.username }},
+      </p>
+      <p style="margin:0 0 16px;">You've been booked onto a shift:</p>
+      <table style="border-collapse:collapse;font-size:14px;margin:0 0 16px;">
+        <tr><td style="padding:4px 8px;color:#64748b;">Title</td><td style="padding:4px 8px;">{{ shift.title }}</td></tr>
+        <tr><td style="padding:4px 8px;color:#64748b;">Date</td><td style="padding:4px 8px;">{{ shift.date }}</td></tr>
+        {% if shift.start_time %}<tr><td style="padding:4px 8px;color:#64748b;">Start</td><td style="padding:4px 8px;">{{ shift.start_time }}</td></tr>{% endif %}
+        {% if shift.end_time %}<tr><td style="padding:4px 8px;color:#64748b;">End</td><td style="padding:4px 8px;">{{ shift.end_time }}</td></tr>{% endif %}
+        <tr><td style="padding:4px 8px;color:#64748b;">Role</td><td style="padding:4px 8px;">{{ shift.role }}</td></tr>
+        <tr><td style="padding:4px 8px;color:#64748b;">Booking ID</td><td style="padding:4px 8px;">{{ booking.id }}</td></tr>
+      </table>
+
+      <p style="margin:0 0 8px;">If you didn’t expect this, please contact your manager.</p>
+
+      <p style="margin:24px 0 0;color:#64748b;">Thanks,<br>Schedulo</p>
+    </div>
+  </body>
+</html>

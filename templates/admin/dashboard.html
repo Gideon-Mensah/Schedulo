@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<style>
+  :root{
+    --primary: #5b8cff;
+    --success: #36d399;
+    --warning: #f6c34f;
+    --danger:  #ff6b6b;
+    --muted: #6b7280;
+    --card-bg: #fff;
+    --card-border: #e5e7eb;
+    --card-radius: 14px;
+  }
+
+  body{
+    background: #f9fafb;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #111827;
+  }
+
+  .dash-wrap{ max-width: 1400px; margin: auto; }
+
+  .dash-header{
+    background: white;
+    border-radius: var(--card-radius);
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    border: 1px solid var(--card-border);
+  }
+
+  .dash-header h2{ margin: 0; font-weight: 600; }
+  .subtle{ color: var(--muted); }
+
+  /* KPI grid */
+  .stat-grid{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px,1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card{
+    background: var(--card-bg);
+    border-radius: var(--card-radius);
+    border: 1px solid var(--card-border);
+    padding: 20px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.03);
+    transition: transform .15s ease;
+  }
+  .stat-card:hover{ transform: translateY(-2px); }
+
+  .stat-title{ font-size: .9rem; color: var(--muted); margin: 0; }
+  .stat-value{ font-size: 1.8rem; font-weight: 700; margin: 8px 0 2px; }
+
+  .stat-icon{
+    width:40px; height:40px; border-radius: 10px;
+    display:grid; place-items:center;
+    font-size:18px; color:#fff;
+  }
+  .icon-primary{ background: var(--primary); }
+  .icon-success{ background: var(--success); }
+  .icon-warning{ background: var(--warning); color:#111; }
+  .icon-danger{ background: var(--danger); }
+
+  /* panels */
+  .panel{
+    background: var(--card-bg);
+    border-radius: var(--card-radius);
+    border: 1px solid var(--card-border);
+    padding: 20px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.03);
+    margin-bottom: 20px;
+  }
+  .panel h5{ margin-bottom: 16px; font-weight: 600; }
+
+  /* table */
+  .table-light th{
+    color: var(--muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .table-light td{
+    border-bottom: 1px solid #f1f1f1;
+  }
+
+  /* badges */
+  .badge-soft{
+    background: #f3f4f6;
+    color: #374151;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: .8rem;
+  }
+</style>
+
+<div class="soft-accent rounded-4 p-4 mb-4">
+  <!-- Header -->
+  <div class="dash-header d-flex flex-wrap align-items-center justify-content-between">
+    <div>
+      <h2 class="mb-1">Admin Dashboard</h2>
+      <div class="subtle">Overview of shifts, bookings, and users</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'create_shift' %}" class="btn btn-primary">Create Shift</a>
+      <a href="{% url 'admin_manage_shifts' %}" class="btn btn-outline-secondary">Manage Shifts</a>
+      <a href="{% url 'compliance_admin_upload' %}" class="btn btn-outline-secondary">Compliance</a>
+      <a href="{% url 'compliance_admin_upload' %}" class="btn btn-outline-secondary">Compliance</a>
+      <a href="{% url 'admin_paid_bookings' %}" class="btn btn-outline-secondary">Paid Shifts</a>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <p class="stat-title">Available Shifts</p>
+        <div class="stat-icon icon-primary"><i class="fa fa-calendar-plus-o"></i></div>
+      </div>
+      <div class="stat-value">{{ available_shifts|default:0 }}</div>
+      <div class="subtle">Open for booking</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <p class="stat-title">Booked Shifts</p>
+        <div class="stat-icon icon-success"><i class="fa fa-check-circle-o"></i></div>
+      </div>
+      <div class="stat-value">{{  total_bookings|default:0 }}</div>
+      <div class="subtle">Including upcoming</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <p class="stat-title">Total Users</p>
+        <div class="stat-icon icon-warning"><i class="fa fa-users"></i></div>
+      </div>
+      <div class="stat-value">{{ total_users|default:0 }}</div>
+      <div class="subtle">Active accounts</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <p class="stat-title">Today’s Shifts</p>
+        <div class="stat-icon icon-danger"><i class="fa fa-clock-o"></i></div>
+      </div>
+      <div class="stat-value">{{ todays_shifts|default:0 }}</div>
+      <div class="subtle">Happening today</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="row">
+    <div class="col-lg-7">
+      <div class="panel">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5>Upcoming Shifts</h5>
+          <a href="{% url 'list_shifts' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+        </div>
+        <div class="table-responsive mt-2">
+          <table class="table table-light align-middle">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Role</th>
+                <th>Capacity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in upcoming_shifts %}
+              <tr>
+                <td>{{ s.title }}</td>
+                <td>{{ s.date|date:"M j, Y" }}</td>
+                <td>{% if s.start_time and s.end_time %}{{ s.start_time }}–{{ s.end_time }}{% else %}<span class="subtle">TBC</span>{% endif %}</td>
+                <td><span class="badge-soft">{{ s.role }}</span></td>
+                <td>{{ s.booked_count }} / {{ s.max_staff }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="subtle">No upcoming shifts.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="panel mb-3">
+        <h5>Quick Actions</h5>
+        <div class="d-grid gap-2">
+          <a href="{% url 'create_shift' %}" class="btn btn-primary"><i class="fa fa-plus me-2"></i>Create a shift</a>
+          <a href="{% url 'admin_manage_shifts' %}" class="btn btn-outline-secondary"><i class="fa fa-list-ul me-2"></i>Manage shifts</a>
+          <a href="{% url 'attendance_report' %}" class="btn btn-outline-secondary"><i class="fa fa-eye me-2"></i>Atendance Report</a>
+          
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5>Recent Users</h5>
+          <span class="subtle small">{{ users|length }} shown</span>
+        </div>
+        <ul class="list-group list-group-flush">
+          {% for u in users %}
+          <li class="list-group-item d-flex align-items-center justify-content-between">
+            <div>
+              <div class="fw-semibold">{{ u.get_full_name|default:u.username }}</div>
+              <div class="subtle small">{{ u.email|default:"—" }}</div>
+            </div>
+            {% if u.is_staff %}
+              <span class="badge-soft">Staff</span>
+            {% else %}
+              <span class="badge-soft">User</span>
+            {% endif %}
+          </li>
+          {% empty %}
+          <li class="list-group-item subtle">No users found.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

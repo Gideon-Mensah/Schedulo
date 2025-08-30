@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Attendance Report{% endblock %}
+
+{% block content %}
+<div class="soft-accent rounded-4 p-4 mb-4">
+
+  <!-- Header -->
+  <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+    <div>
+      <h3 class="mb-0">Attendance Report</h3>
+      <div class="text-muted">Review clock-ins/outs and punctuality</div>
+    </div>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <!-- Export actions -->
+      <a class="btn btn-outline-secondary btn-sm"
+         href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&format=csv">
+        <i class="fa fa-file-text-o me-1"></i>CSV
+      </a>
+      <a class="btn btn-outline-secondary btn-sm"
+         href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&format=xlsx">
+        <i class="fa fa-file-excel-o me-1"></i>Excel
+      </a>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-12 col-md-auto">
+      <label class="form-label mb-1">Start</label>
+      <input type="date" name="start" value="{{ start|date:'Y-m-d' }}" class="form-control">
+    </div>
+    <div class="col-12 col-md-auto">
+      <label class="form-label mb-1">End</label>
+      <input type="date" name="end" value="{{ end|date:'Y-m-d' }}" class="form-control">
+    </div>
+    <div class="col-12 col-md-auto">
+      <label class="form-label mb-1">User (optional)</label>
+      <input type="text" name="user" value="{{ request.GET.user }}" class="form-control" placeholder="Name or email">
+    </div>
+    <div class="col-12 col-md-auto">
+      <label class="form-label mb-1">Status</label>
+      <select name="status" class="form-select">
+        <option value="" {% if not request.GET.status %}selected{% endif %}>Any</option>
+        <option value="present" {% if request.GET.status == "present" %}selected{% endif %}>Present</option>
+        <option value="absent" {% if request.GET.status == "absent" %}selected{% endif %}>Absent</option>
+        <option value="partial" {% if request.GET.status == "partial" %}selected{% endif %}>Partial</option>
+        <option value="late" {% if request.GET.status == "late" %}selected{% endif %}>Late</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-auto">
+      <button class="btn btn-primary w-100">
+        <i class="fa fa-filter me-1"></i>Apply
+      </button>
+    </div>
+    <div class="col-12 col-md-auto ms-md-auto">
+      <!-- Client-side quick search -->
+      <label class="form-label mb-1">Quick search</label>
+      <input id="quickSearch" type="search" class="form-control" placeholder="Type to filter table…">
+    </div>
+  </form>
+
+  <form method="get" class="mb-3">
+    <input type="date" name="start" value="{{ start }}">
+    <input type="date" name="end" value="{{ end }}">
+    <label class="ms-2">
+      <input type="checkbox" name="include_paid" value="1" {% if request.GET.include_paid == "1" %}checked{% endif %}>
+      Include paid
+    </label>
+    <button class="btn btn-sm btn-outline-primary ms-2">Apply</button>
+  </form>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Total Bookings</div>
+          <div class="fs-4 fw-semibold">{{ rows|length }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Present</div>
+          <div class="fs-4 fw-semibold">
+            {{ rows|dictsort:"status"|length }}{# placeholder; optional to compute server-side #}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Average Late (min)</div>
+          <div class="fs-4 fw-semibold">
+            {% with total=0 count=0 %}
+              {% for r in rows %}
+                {% if r.late_min and r.late_min|floatformat != "0" %}
+                  {% widthratio 1 1 1 as _noop %}{% comment %}force loop context init{% endcomment %}
+                  {% with total=total|add:r.late_min count=count|add:"1" %}{% endwith %}
+                {% endif %}
+              {% endfor %}
+              {% if count > 0 %}
+                {% widthratio total count 1 %}{# avg #}
+              {% else %}
+                0
+              {% endif %}
+            {% endwith %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Date Range</div>
+          <div class="fw-semibold">{{ start|date:"M j, Y" }} – {{ end|date:"M j, Y" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card shadow-sm border-0">
+    <div class="table-responsive" style="max-height: 60vh; overflow: auto;">
+      <table class="table align-middle table-hover mb-0">
+        <thead class="table-light sticky-top" style="top:0; z-index: 1;">
+          <tr>
+            <th>Date</th>
+            <th>User</th>
+            <th>Role</th>
+            <th>Title</th>
+            <th class="text-nowrap">Sched. Start</th>
+            <th class="text-nowrap">Sched. End</th>
+            <th>Clock In</th>
+            <th>Clock Out</th>           
+            <th>Worked</th>
+            <th class="text-nowrap">Late (min)</th>
+            <th class="text-nowrap">Early (min)</th>
+            <th>Status</th>
+            <th>Note</th>
+            <th>Signed By</th>
+            <th>Signature</th>
+          </tr>
+        </thead>
+        <tbody id="reportBody">
+          {% for r in rows %}
+          <tr>
+            <td class="text-nowrap">{{ r.date }}</td>
+            <td>
+              <div class="fw-semibold">{{ r.user }}</div>
+              {% if r.postcode %}
+                <div class="text-muted small">{{ r.postcode }}</div>
+              {% endif %}
+            </td>
+            <td>{{ r.role }}</td>
+            <td class="text-truncate" style="max-width: 240px;">{{ r.title }}</td>
+            <td class="text-nowrap">{{ r.start }}</td>
+            <td class="text-nowrap">{{ r.end }}</td>
+            <td class="text-nowrap">
+              {% if r.clock_in %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2">
+                  {{ r.clock_in }}
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-nowrap">
+              {% if r.clock_out %}
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2">
+                  {{ r.clock_out }}
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.worked %}
+                {{ r.worked }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-nowrap">
+              {% if r.late_min %}
+                <span class="badge {% if r.late_min|floatformat > '0' %}bg-warning text-dark{% else %}bg-success-subtle text-success border border-success-subtle{% endif %}">
+                  {{ r.late_min }}
+                </span>
+              {% else %}
+                <span class="text-muted">0</span>
+              {% endif %}
+            </td>
+            <td class="text-nowrap">
+              {% if r.early_min %}
+                <span class="badge {% if r.early_min|floatformat > '0' %}bg-info text-dark{% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %}">
+                  {{ r.early_min }}
+                </span>
+              {% else %}
+                <span class="text-muted">0</span>
+              {% endif %}
+            </td>
+            <td>
+              {% with s=r.status|lower %}
+                {% if s == "present" %}
+                  <span class="badge rounded-pill bg-success">Present</span>
+                {% elif s == "absent" %}
+                  <span class="badge rounded-pill bg-danger">Absent</span>
+                {% elif s == "partial" %}
+                  <span class="badge rounded-pill bg-warning text-dark">Partial</span>
+                {% elif s == "late" %}
+                  <span class="badge rounded-pill bg-secondary">Late</span>
+                {% else %}
+                  <span class="badge rounded-pill bg-light text-dark border">—</span>
+                {% endif %}
+              {% endwith %}
+            </td>
+            <td>{{ b.shift.title }}<br><small>{{ b.shift.date }} {{ b.shift.start_time }}–{{ b.shift.end_time }}</small></td>
+            <td>
+                {% if b.clock_in_at %}{{ b.clock_in_at|date:"Y-m-d H:i" }}<br><small>{{ b.clock_in_postcode }}</small>{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td>
+                {% if b.clock_out_at %}{{ b.clock_out_at|date:"Y-m-d H:i" }}<br><small>{{ b.clock_out_postcode }}</small>{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td style="max-width:240px; white-space:pre-wrap;">{{ b.clock_out_note|default:"" }}</td>
+            <td>{{ b.clock_out_signed_by|default:"" }}</td>
+            <td>
+                {% if b.clock_out_signature %}
+                <a href="{{ b.clock_out_signature.url }}" target="_blank" rel="noopener">
+                  <img src="{{ b.clock_out_signature.url }}" alt="Signature" style="height:50px; border:1px solid #eee; background:#fff;">
+                </a>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+             </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="12" class="text-center py-5 text-muted">
+              No bookings found for this range.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tiny enhancements -->
+<style>
+  /* subtle “modern” polish */
+  .card { border-radius: 1rem; }
+  .table thead th { font-weight: 600; letter-spacing: .02em; }
+  .bg-success-subtle { background-color: rgba(25,135,84,.08) !important; }
+  .bg-secondary-subtle { background-color: rgba(108,117,125,.08) !important; }
+  .border-success-subtle { border-color: rgba(25,135,84,.25) !important; }
+  .border-secondary-subtle { border-color: rgba(108,117,125,.25) !important; }
+</style>
+
+<script>
+  // simple client-side filter (matches text across the row)
+  (function () {
+    const input = document.getElementById('quickSearch');
+    const tbody = document.getElementById('reportBody');
+    if (!input || !tbody) return;
+
+    input.addEventListener('input', function () {
+      const q = this.value.trim().toLowerCase();
+      for (const tr of tbody.querySelectorAll('tr')) {
+        const txt = tr.innerText.toLowerCase();
+        tr.style.display = txt.indexOf(q) !== -1 ? '' : 'none';
+      }
+    }, { passive: true });
+  })();
+</script>
+{% endblock %}

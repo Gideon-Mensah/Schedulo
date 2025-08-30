@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  Available Shifts
+{% endblock %}
+
+{% block content %}
+  <div class="container py-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div>
+        <h2 class="mb-0">Available Shifts</h2>
+        <div class="text-muted small">Find and book upcoming work</div>
+      </div>
+      <div class="input-group" style="max-width: 360px;">
+        <span class="input-group-text"><i class="fa fa-search"></i></span>
+        <input id="shiftSearch" type="text" class="form-control" placeholder="Search title, role, postcode…" oninput="filterShiftCards()" />
+      </div>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} rounded-3 shadow-sm">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    {% if shifts %}
+      <div id="shiftGrid" class="row g-3">
+        {% for s in shifts %}
+          <div class="col-12 col-md-6 col-xl-4 shift-card">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+              <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h5 class="card-title mb-1">{{ s.title }}</h5>
+                    <div class="text-muted small">
+                      {{ s.date|date:'D, M j' }}
+                      {% if s.start_time %}
+                        • {{ s.start_time|time:'H:i' }}
+                      {% endif %}
+                      {% if s.end_time %}
+                        –{{ s.end_time|time:'H:i' }}
+                      {% endif %}
+                    </div>
+                  </div>
+                  <span class="badge rounded-pill bg-light text-dark border">{{ s.role }}</span>
+                </div>
+
+                <div class="mt-3 d-flex flex-wrap gap-2 small">
+                  <span class="badge bg-soft">📍 {{ s.location }}</span>
+                  {% if s.allowed_postcode %}
+                    <span class="badge bg-soft">🧭 {{ s.allowed_postcode }}</span>
+                  {% endif %}
+                  <span class="badge bg-soft">👥 {{ s.booked_total|default:0 }}/{{ s.max_staff }}</span>
+                </div>
+
+                <div class="mt-3">
+                  <div class="progress" role="progressbar" aria-label="Capacity">
+                    {% if s.max_staff %}
+                      {% widthratio s.booked_total|default:0 s.max_staff 100 as pct %}
+                      <div class="progress-bar" style="width: {{ pct }}%;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ pct }}"></div>
+                    {% else %}
+                      <div class="progress-bar" style="width: 0%;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="mt-auto pt-3 d-flex justify-content-end">
+                  <form method="post" action="{% url 'book_shift' s.id %}">
+                    {% csrf_token %}
+                    <button class="btn btn-primary rounded-3">Book shift</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-center text-muted py-5">
+        <i class="fa fa-calendar-xmark fa-2x mb-2"></i>
+        <p class="mb-0">No upcoming shifts available right now.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <style>
+    .bg-soft {
+      background: var(--bs-light-bg-subtle, #f6f7fb);
+    }
+    .progress {
+      height: 8px;
+      border-radius: 999px;
+      background: #eef1f6;
+    }
+    .progress-bar {
+      border-radius: 999px;
+    }
+  </style>
+
+  <script>
+    function filterShiftCards() {
+      const q = (document.getElementById('shiftSearch').value || '').toLowerCase()
+      document.querySelectorAll('#shiftGrid .shift-card').forEach((card) => {
+        const text = card.innerText.toLowerCase()
+        card.style.display = text.includes(q) ? '' : 'none'
+      })
+    }
+  </script>
+{% endblock %}

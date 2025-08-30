@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Paid Bookings{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-0">Paid Bookings</h3>
+      <div class="text-muted small">{{ count }} result{{ count|pluralize }}</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="?start={{ start }}&end={{ end }}&user_q={{ user_q }}&role_q={{ role_q }}&format=csv">Export CSV</a>
+      <a class="btn btn-outline-secondary" href="?start={{ start }}&end={{ end }}&user_q={{ user_q }}&role_q={{ role_q }}&format=xlsx">Export XLSX</a>
+    </div>
+  </div>
+
+  <form class="row g-2 mb-3" method="get">
+    <div class="col-12 col-md-2">
+      <label class="form-label small">Start</label>
+      <input type="date" class="form-control" name="start" value="{{ start }}">
+    </div>
+    <div class="col-12 col-md-2">
+      <label class="form-label small">End</label>
+      <input type="date" class="form-control" name="end" value="{{ end }}">
+    </div>
+    <div class="col-12 col-md-3">
+      <label class="form-label small">User</label>
+      <input type="text" class="form-control" name="user_q" value="{{ user_q }}" placeholder="name/username/email">
+    </div>
+    <div class="col-12 col-md-2">
+      <label class="form-label small">Role</label>
+      <input type="text" class="form-control" name="role_q" value="{{ role_q }}" placeholder="e.g. Care">
+    </div>
+    <div class="col-12 col-md-2 d-flex align-items-end">
+      <button class="btn btn-primary w-100">Apply</button>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Date</th><th>User</th><th>Role</th><th>Title</th>
+          <th>Start</th><th>End</th><th>Clock In</th><th>Clock Out</th><th>Worked</th><th>Paid At</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.date }}</td>
+            <td>{{ r.user }}</td>
+            <td>{{ r.role }}</td>
+            <td>{{ r.title }}</td>
+            <td>{{ r.start }}</td>
+            <td>{{ r.end }}</td>
+            <td>{{ r.clock_in }}</td>
+            <td>{{ r.clock_out }}</td>
+            <td>{{ r.worked }}</td>
+            <td>{{ r.paid_at }}</td>
+            <td class="text-end">
+              {% if r.booking_id %}
+                <form method="post" action="{% url 'admin_unmark_paid' r.booking_id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger">Unmark paid</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="11" class="text-muted">No paid bookings in range.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

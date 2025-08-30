@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}User Created{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+          <h3 class="mb-3">User Created</h3>
+          <p><strong>{{ user_obj.get_full_name|default:user_obj.username }}</strong> ({{ user_obj.username }}) has been created.</p>
+
+          {% if temp_password %}
+            <div class="alert alert-info">
+              <div class="fw-semibold mb-1">Temporary password (showing once):</div>
+              <code class="user-select-all">{{ temp_password }}</code>
+            </div>
+          {% endif %}
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-primary" href="{% url 'admin_user_list' %}">Back to Users</a>
+            <a class="btn btn-outline-secondary" href="{% url 'admin_user_send_reset' user_obj.id %}">Send password reset email</a>
+          </div>
+
+          <p class="text-muted small mt-3">You can also ask the user to use the “Forgot password” link on the login page.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

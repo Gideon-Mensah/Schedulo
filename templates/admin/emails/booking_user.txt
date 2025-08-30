@@ -1,0 +1,16 @@
+Hi {{ user.get_full_name|default:user.username }},
+
+You've been booked onto a shift.
+
+• Title: {{ shift.title }}
+• Date:  {{ shift.date }}
+{% if shift.start_time %}• Start: {{ shift.start_time }}{% endif %}
+{% if shift.end_time %}• End:   {{ shift.end_time }}{% endif %}
+• Role:  {{ shift.role }}
+
+Booking ID: {{ booking.id }}
+
+If you didn’t expect this, please contact your manager.
+
+Thanks,
+Schedulo

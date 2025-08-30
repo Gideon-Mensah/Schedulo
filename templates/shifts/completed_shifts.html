@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Completed (Unpaid){% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-3">Completed Shifts (Awaiting Payment)</h2>
+
+  {% if bookings %}
+    <div class="row g-3">
+      {% for booking in bookings %}
+        <div class="col-12">
+          <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body d-flex justify-content-between flex-wrap gap-3">
+              <div>
+                <h5 class="mb-1">{{ booking.shift.title }}</h5>
+                <div class="text-muted small">
+                  {{ booking.shift.date|date:"D, M j" }}
+                  {% if booking.shift.start_time %}• {{ booking.shift.start_time|time:"H:i" }}{% endif %}
+                  {% if booking.shift.end_time %}–{{ booking.shift.end_time|time:"H:i" }}{% endif %}
+                </div>
+                <div class="mt-2 small">
+                  {% if booking.clock_in_at %}<span class="badge text-bg-success">In: {{ booking.clock_in_at|date:"M j, H:i" }}</span>{% endif %}
+                  {% if booking.clock_out_at %}<span class="badge text-bg-secondary">Out: {{ booking.clock_out_at|date:"M j, H:i" }}</span>{% endif %}
+                  <span class="badge text-bg-warning text-dark">Unpaid</span>
+                </div>
+              </div>
+              <div class="text-end">
+                <span class="text-muted small">Payment pending</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted">No unpaid completed shifts.</p>
+  {% endif %}
+</div>
+{% endblock %}

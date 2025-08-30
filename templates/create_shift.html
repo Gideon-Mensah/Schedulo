@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Create Shift{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h2 class="mb-1">Create Shift</h2>
+      <p class="text-muted mb-0">Define timing, role, location and capacity.</p>
+    </div>
+    <a href="{% url 'list_shifts' %}" class="btn btn-outline-secondary">
+      ← Back to Shifts
+    </a>
+  </div>
+
+  <!-- Global form errors -->
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+      {% for err in form.non_field_errors %}{{ err }}<br>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" novalidate id="shiftForm" class="needs-validation">
+    {% csrf_token %}
+
+    <div class="row g-4">
+      <!-- Column: Shift Details -->
+      <div class="col-12 col-lg-7">
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h5 class="card-title mb-3">Shift details</h5>
+
+            <div class="mb-3">
+              <label class="form-label">Title</label>
+              {{ form.title.as_widget|safe }}
+              {% if form.title.errors %}<div class="invalid-feedback d-block">{{ form.title.errors|join:", " }}</div>{% endif %}
+            </div>
+
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label class="form-label">Date</label>
+                {{ form.date.as_widget|safe }}
+                {% if form.date.errors %}<div class="invalid-feedback d-block">{{ form.date.errors|join:", " }}</div>{% endif %}
+              </div>
+              <div class="col-sm-3">
+                <label class="form-label">Start time</label>
+                {{ form.start_time.as_widget|safe }}
+                {% if form.start_time.errors %}<div class="invalid-feedback d-block">{{ form.start_time.errors|join:", " }}</div>{% endif %}
+              </div>
+              <div class="col-sm-3">
+                <label class="form-label">End time</label>
+                {{ form.end_time.as_widget|safe }}
+                {% if form.end_time.errors %}<div class="invalid-feedback d-block">{{ form.end_time.errors|join:", " }}</div>{% endif %}
+              </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+              <div class="col-sm-6">
+                <label class="form-label">Role</label>
+                {{ form.role.as_widget|safe }}
+                {% if form.role.errors %}<div class="invalid-feedback d-block">{{ form.role.errors|join:", " }}</div>{% endif %}
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label">Max staff</label>
+                {{ form.max_staff.as_widget|safe }}
+                {% if form.max_staff.errors %}<div class="invalid-feedback d-block">{{ form.max_staff.errors|join:", " }}</div>{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column: Location & Rules -->
+      <div class="col-12 col-lg-5">
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <h5 class="card-title mb-3">Location & validation</h5>
+
+            <div class="mb-3">
+              <label class="form-label">Location (address / site)</label>
+              {{ form.location.as_widget|safe }}
+              <div class="form-text">Shown to staff on the booking.</div>
+              {% if form.location.errors %}<div class="invalid-feedback d-block">{{ form.location.errors|join:", " }}</div>{% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Allowed postcode (optional)</label>
+              {{ form.allowed_postcode.as_widget|safe }}
+              <div class="form-text">If set, staff must be physically within this postcode to clock in/out.</div>
+              {% if form.allowed_postcode.errors %}<div class="invalid-feedback d-block">{{ form.allowed_postcode.errors|join:", " }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary card -->
+        <div class="card mt-4 border-0 shadow-sm">
+          <div class="card-body p-4">
+            <h6 class="text-muted mb-3">Quick summary</h6>
+            <ul class="list-unstyled small mb-0">
+              <li>📅 <span id="sumDate">—</span></li>
+              <li>⏰ <span id="sumTime">—</span></li>
+              <li>👥 Max staff: <span id="sumMax">—</span></li>
+              <li>🏷️ Role: <span id="sumRole">—</span></li>
+              <li>📍 <span id="sumLocation">—</span></li>
+              <li>🏁 Postcode rule: <span id="sumPostcode">—</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky submit bar -->
+    <div class="position-sticky bottom-0 mt-4" style="z-index: 1020;">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body d-flex justify-content-between align-items-center py-3">
+          <div class="text-muted small">
+            Make sure your times are correct—staff can only clock within the allowed window.
+          </div>
+          
+          <div class="d-flex gap-2"> 
+            <a href="{% url 'list_shifts' %}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary px-4">Create Shift</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invisible help: we’ll add classes/attrs via JS so your form works regardless of widget setup -->
+    <input type="hidden" id="bootstrapEnhance" value="1">
+  </form>
+</div>
+
+<style>
+  /* Soft cards & subtle accents */
+  .card { border-radius: 14px; }
+  .card-title { font-weight: 600; }
+  .form-label { font-weight: 600; }
+  .form-control, .form-select { border-radius: 10px; }
+  .btn { border-radius: 10px; }
+  .form-text { color: var(--bs-secondary-color); }
+
+  /* Light/Dark adaptation if you use a body[data-bs-theme] toggle */
+  [data-bs-theme="dark"] .card { background: #15171b; }
+  [data-bs-theme="dark"] .form-text { color: #9aa3af; }
+</style>
+
+<script>
+  (function () {
+    // Grab form fields (works whether fields are <input>, <select>, etc.)
+    const f = document.getElementById('shiftForm');
+    if (!f) return;
+
+    // Utility to find field by Django's auto-generated id (id_<name>)
+    const byId = (name) => document.getElementById('id_' + name);
+
+    const title = byId('title');
+    const date = byId('date');
+    const start = byId('start_time');
+    const end = byId('end_time');
+    const role = byId('role');
+    const maxStaff = byId('max_staff');
+    const location = byId('location');
+    const postcode = byId('allowed_postcode');
+
+    // Add Bootstrap classes if missing (useful if your form widgets don't set them)
+    [title, date, start, end, role, maxStaff, location, postcode].forEach(el => {
+      if (!el) return;
+      if (el.tagName === 'SELECT') {
+        el.classList.add('form-select');
+      } else {
+        el.classList.add('form-control');
+      }
+      el.setAttribute('autocomplete', 'off');
+    });
+    if (date && date.type !== 'date') { date.type = 'date'; }
+    if (start && start.type !== 'time') { start.type = 'time'; }
+    if (end && end.type !== 'time') { end.type = 'time'; }
+    if (maxStaff && maxStaff.type !== 'number') { maxStaff.type = 'number'; maxStaff.min = '1'; }
+
+    // Ensure date cannot be in the past (optional)
+    if (date) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      date.min = `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Auto-format UK-style postcode (uppercase, single space before last 3 chars if length > 3)
+    if (postcode) {
+      postcode.placeholder = postcode.placeholder || "e.g. SW1A 1AA";
+      postcode.addEventListener('input', () => {
+        let v = postcode.value.toUpperCase().replace(/\s+/g, '');
+        if (v.length > 3) v = v.slice(0, -3) + ' ' + v.slice(-3);
+        postcode.value = v;
+      });
+    }
+
+    // Simple time validation: end >= start (only if both present)
+    function validateTimes() {
+      if (!start || !end) return true;
+      const s = start.value, e = end.value;
+      if (!s || !e) return true;
+      // Compare as times
+      if (s > e) {
+        end.setCustomValidity('End time must be after start time.');
+      } else {
+        end.setCustomValidity('');
+      }
+      return end.checkValidity();
+    }
+    if (start) start.addEventListener('change', validateTimes);
+    if (end) end.addEventListener('change', validateTimes);
+
+    // Live summary
+    const $ = (id) => document.getElementById(id);
+    const sumDate = $('sumDate'), sumTime = $('sumTime'), sumMax = $('sumMax'),
+          sumRole = $('sumRole'), sumLocation = $('sumLocation'), sumPostcode = $('sumPostcode');
+
+    function refreshSummary() {
+      sumDate && (sumDate.textContent = date && date.value ? new Date(date.value + 'T00:00:00').toLocaleDateString() : '—');
+      const st = start && start.value ? start.value : '—';
+      const et = end && end.value ? end.value : '—';
+      sumTime && (sumTime.textContent = (st !== '—' || et !== '—') ? `${st} – ${et}` : '—');
+      sumMax && (sumMax.textContent = maxStaff && maxStaff.value ? maxStaff.value : '—');
+      sumRole && (sumRole.textContent = role && role.options && role.selectedIndex >= 0 ? role.options[role.selectedIndex].text : '—');
+      sumLocation && (sumLocation.textContent = location && location.value ? location.value : '—');
+      sumPostcode && (sumPostcode.textContent = postcode && postcode.value ? postcode.value : '—');
+    }
+    [title, date, start, end, role, maxStaff, location, postcode].forEach(el => el && el.addEventListener('input', refreshSummary));
+    refreshSummary();
+
+    // Bootstrap validation UI
+    f.addEventListener('submit', function (e) {
+      // run our custom time check too
+      validateTimes();
+
+      if (!f.checkValidity()) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      f.classList.add('was-validated');
+    }, false);
+  })();
+</script>
+{% endblock %}

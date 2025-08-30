@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{# --- Runs early, in <head> of base.html --- #}
+{% block head_extra %}
+  <!-- Extra no-store hints (server also sets headers in NoCacheLoginView) -->
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <script>
+    (function () {
+      function handlePageShow(e) {
+        // If page is restored from the back/forward cache, force a fresh request
+        var fromBFCache = (e && e.persisted);
+        // Extra check for some browsers:
+        try {
+          var navs = performance && performance.getEntriesByType && performance.getEntriesByType('navigation');
+          if (navs && navs[0] && navs[0].type === 'back_forward') fromBFCache = true;
+        } catch (_) {}
+
+        if (fromBFCache) {
+          window.location.reload();
+        }
+      }
+
+      // Fire on restore from bfcache
+      window.addEventListener('pageshow', handlePageShow);
+    })();
+  </script>
+{% endblock %}
+
+{% block content %}
+<div class="container d-flex align-items-center justify-content-center mt-4 soft-accent rounded-4 p-4 mb-4"  style="min-height: 70vh;">
+  <div class="w-100" style="max-width: 420px;">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-body p-4 p-md-5">
+        <div class="text-center mb-4">
+          <h2 class="h4 mb-1">Welcome back</h2>
+          <p class="text-muted mb-0">Sign in to continue</p>
+        </div>
+
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          {# Show only once — above all fields #}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2 mb-3">
+              {{ form.non_field_errors }}
+            </div>
+          {% endif %}
+
+          <div class="mb-3">
+            {{ form.username.label_tag }}
+            {{ form.username }}
+            {% if form.username.errors %}
+              <div class="text-danger small">
+                {{ form.username.errors|striptags }}
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.password.label_tag }}
+            {{ form.password }}
+            {% if form.password.errors %}
+              <div class="text-danger small">
+                {{ form.password.errors|striptags }}
+              </div>
+            {% endif %}
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-lg w-100">
+            Login
+          </button>
+        </form>
+
+        <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+          <a class="small text-decoration-none" href="">Forgot password?</a>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-center text-muted mt-3 mb-0" style="font-size: .9rem;">
+      By continuing you agree to our <a href="#" class="text-decoration-none">Terms</a> &amp;
+      <a href="#" class="text-decoration-none">Privacy Policy</a>.
+    </p>
+  </div>
+</div>
+{% endblock %}

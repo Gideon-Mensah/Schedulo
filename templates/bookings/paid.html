@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Paid Shifts{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h3 class="mb-3">Paid Shifts</h3>
+
+  {% if bookings %}
+    <div class="row g-3">
+      {% for b in bookings %}
+      <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4">
+          <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+              <div class="fw-semibold">{{ b.shift.title }}</div>
+              <div class="text-muted small">
+                {{ b.shift.date }}{% if b.shift.start_time %}, {{ b.shift.start_time|time:"H:i" }}{% endif %}
+                {% if b.shift.end_time %}–{{ b.shift.end_time|time:"H:i" }}{% endif %}
+                · Role: {{ b.shift.role }}
+              </div>
+              <div class="small mt-1">
+                {% if b.clock_in_at %}In: {{ b.clock_in_at|date:"M j, H:i" }} · {% endif %}
+                {% if b.clock_out_at %}Out: {{ b.clock_out_at|date:"M j, H:i" }} · {% endif %}
+                <span class="badge text-bg-success">Paid: {{ b.paid_at|date:"Y-m-d H:i" }}</span>
+              </div>
+            </div>
+            <div class="text-end small text-muted">
+              Booking #{{ b.id }}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="fa fa-check-circle fa-2x mb-2"></i>
+      <p class="mb-0">No paid shifts yet.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

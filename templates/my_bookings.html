@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}
+  My Bookings
+{% endblock %}
+
+{% block content %}
+  <div class="container py-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div>
+        <h2 class="mb-0">My Bookings</h2>
+        <div class="text-muted small">
+          {% now 'l, jS F Y' %}
+        </div>
+      </div>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} rounded-3 shadow-sm">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    {% if bookings %}
+      <div class="row g-3">
+        {% for booking in bookings %}
+          <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4">
+              <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between gap-3">
+                  <div class="me-3">
+                    <h5 class="mb-1">{{ booking.shift.title }}</h5>
+                    <div class="text-muted small">
+                      {{ booking.shift.date|date:'D, M j' }}
+                      {% if booking.shift.start_time %}
+                        • {{ booking.shift.start_time|time:'H:i' }}
+                      {% endif %}
+                      {% if booking.shift.end_time %}
+                        –{{ booking.shift.end_time|time:'H:i' }}
+                      {% endif %}
+                    </div>
+
+                    <div class="mt-2 d-flex flex-wrap gap-2 small">
+                      <span class="badge bg-soft">📍 {{ booking.shift.location }}</span>
+                      {% if booking.shift.allowed_postcode %}
+                        <span class="badge bg-soft">🧭 {{ booking.shift.allowed_postcode }}</span>
+                      {% endif %}
+                      {% if booking.shift.is_past %}
+                        <span class="badge bg-dark">Past</span>
+                      {% endif %}
+                      {% if booking.clock_in_at %}
+                        <span class="badge bg-success">In: {{ booking.clock_in_at|date:'M j, H:i' }}</span>
+                      {% endif %}
+                      {% if booking.clock_out_at %}
+                        <span class="badge bg-secondary">Out: {{ booking.clock_out_at|date:'M j, H:i' }}</span>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="ms-auto d-flex flex-wrap align-items-center gap-2">
+                    {% if booking.show_clock_in %}
+                      <button class="btn btn-primary rounded-3" onclick="postWithLocation('{% url 'clock_in' booking.id %}')">Clock In</button>
+                    {% endif %}
+
+                    {% if booking.show_clock_out %}
+                      <button class="btn btn-outline-primary rounded-3" onclick="postWithLocation('{% url 'clock_out' booking.id %}')">Clock Out</button>
+                    {% endif %}
+
+                    {% if not booking.shift.is_past %}
+                      <form method="post" action="{% url 'cancel_booking' booking.id %}">
+                        {% csrf_token %}
+                        <button class="btn btn-danger rounded-3">Cancel</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-center text-muted py-5">
+        <i class="fa fa-inbox fa-2x mb-2"></i>
+        <p class="mb-0">You have no bookings yet.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <style>
+    .bg-soft {
+      background: var(--bs-light-bg-subtle, #f6f7fb);
+    }
+  </style>
+
+  <script>
+    // Uses your existing JSON + geolocation clock endpoints
+    function postWithLocation(url) {
+      if (!navigator.geolocation) {
+        alert('Geolocation not supported.')
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': (function () {
+                const name = 'csrftoken='
+                for (let c of document.cookie.split(';')) {
+                  c = c.trim()
+                  if (c.startsWith(name)) return decodeURIComponent(c.slice(name.length))
+                }
+                return ''
+              })()
+            },
+            body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+          })
+            .then((r) =>
+              r
+                .json()
+                .catch(() => ({}))
+                .then((d) => ({ ok: r.ok, status: r.status, data: d }))
+            )
+            .then(({ ok, data }) => {
+              if (!ok) alert(data && data.msg ? data.msg : 'Clock request failed.')
+              window.location.reload()
+            })
+            .catch(() => alert('Network error. Please try again.'))
+        },
+        function (err) {
+          alert(err && err.message ? err.message : 'Location permission denied.')
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      )
+    }
+  </script>
+{% endblock %}
