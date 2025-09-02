@@ -1,7 +1,9 @@
 # This file lists all Python dependencies for your Django app
 Django==5.2.4
 gunicorn
-psycopg2-binary
 whitenoise
+psycopg2-binary
+dj-database-url
 django-widget-tweaks
+requests>=2.31
 # Add any other dependencies your app uses
