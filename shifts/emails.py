@@ -18,14 +18,23 @@ def send_booking_email(booking):
         "booking": booking,
     }
 
-    subject = render_to_string("emails/booking_user_subject.txt", ctx).strip()
+    org = getattr(booking, "organization", None)
+    if not org:
+        org_name = "Schedulo"
+        org_slug = "schedulo"
+    else:
+        org_name = org.name
+        org_slug = org.slug
+    subject = f"[{org_name}] You're booked: {shift.title} on {shift.date}"
+    from_email = f"{org_name} <no-reply@{org_slug}.schedulo.com>"
+
     text_body = render_to_string("emails/booking_user.txt", ctx)
     html_body = render_to_string("emails/booking_user.html", ctx)
 
     msg = EmailMultiAlternatives(
         subject=subject,
         body=text_body,
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+        from_email=from_email,
         to=[user.email],
     )
     msg.attach_alternative(html_body, "text/html")

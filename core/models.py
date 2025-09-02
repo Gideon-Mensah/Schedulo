@@ -1,28 +1,40 @@
 from django.db import models
-from django.db import models
-from django.contrib.auth.models import User
+from core.tenant import get_current_org
+
 
 class Organization(models.Model):
-    name = models.CharField(max_length=120, unique=True)
-    slug = models.SlugField(unique=True)  # e.g. "acme"
-    owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="owned_orgs")
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(unique=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Domain(models.Model):
-    """
-    Maps incoming hostnames to an Organization.
-    e.g. acme.schedulo.com -> acme org
-    """
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="domains")
-    domain = models.CharField(max_length=255, unique=True)  # host only, no scheme
-    is_primary = models.BooleanField(default=False)
+    domain = models.CharField(max_length=255, unique=True)  # e.g. acme.localhost
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class TenantManager(models.Manager):
+    """Auto-scope queries by the current org (if present)."""
+    def get_queryset(self):
+        qs = super().get_queryset()
+        org = get_current_org()
+        return qs.filter(organization=org) if org else qs
 
 class TenantOwned(models.Model):
-    """
-    Inherit this in every model that belongs to one org.
-    """
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, editable=False, db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="%(class)ss")
+    objects = TenantManager()             # default scoping
+    all_objects = models.Manager()        # escape hatch (superuser/admin tasks)
 
     class Meta:
         abstract = True
+
+    def save(self, *args, **kwargs):
+        if not self.organization_id:
+            org = get_current_org()
+            if org is None:
+                from django.core.exceptions import ImproperlyConfigured
+                raise ImproperlyConfigured("No current organization set when saving a tenant object.")
+            self.organization = org
+        return super().save(*args, **kwargs)
+    

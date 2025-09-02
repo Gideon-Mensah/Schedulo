@@ -1,0 +1,7 @@
+# This file lists all Python dependencies for your Django app
+Django==5.2.4
+gunicorn
+psycopg2-binary
+whitenoise
+widget-tweaks
+# Add any other dependencies your app uses

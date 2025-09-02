@@ -5,6 +5,8 @@ from django.utils import timezone
 from datetime import datetime, time as dtime, timedelta
 from datetime import datetime as dt, time as dtime
 from django.utils import timezone
+from core.models import TenantOwned
+from core.managers import TenantManager
 
 User = settings.AUTH_USER_MODEL
 
@@ -15,30 +17,30 @@ def _normalize_postcode(pc: str | None) -> str | None:
     return pc.replace(" ", "").upper()
 
 
-class Shift(models.Model):
-    ROLE_CHOICES = [
-        ('Care', 'Care'),
-        ('Cleaning', 'Cleaning'),
-    ]
-
-    title = models.CharField(max_length=100)
+class Shift(TenantOwned):
+    ROLE_CHOICES = [('Care','Care'),('Cleaning','Cleaning')]
+    title = models.CharField(max_length=200, default="Untitled Shift")
     date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     location = models.CharField(max_length=255)
     max_staff = models.IntegerField()
-
-    # ✅ Postcode required for clocking (leave blank to disable postcode check)
-    allowed_postcode = models.CharField(
-        max_length=16, null=True, blank=True,
-        help_text="e.g. SW1A 1AA (leave blank to skip postcode check)"
-    )
+    allowed_postcode = models.CharField(max_length=16, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.title} ({self.date} - {self.start_time} to {self.end_time})"
+        return f"{self.title} ({self.date} {self.start_time}-{self.end_time})"
 
-    # ---- Capacity helpers (both method + property for backward-compat) ----
+
+
+    objects = TenantManager()
+
+    def __str__(self):
+        st = self.start_time.strftime("%H:%M") if self.start_time else "--:--"
+        et = self.end_time.strftime("%H:%M") if self.end_time else "--:--"
+        return f"{self.title} ({self.date} {st}-{et})"
+
+    # ---- Capacity helpers ----
     def booked_count(self) -> int:
         return self.shiftbooking_set.count()
 
@@ -54,44 +56,42 @@ class Shift(models.Model):
         return self.has_space()
 
     # ---- Time helpers ----
-    def _end_dt(self) -> datetime:
+    def _end_dt(self):
         """
-        Returns an *aware* datetime for when this shift is considered 'over'
-        (end_time if present, else start_time, else end of day).
+        A timezone-aware datetime when this shift is considered 'over'
+        (end_time if present, else start_time, else 23:59:59).
         """
         t = self.end_time or self.start_time or dtime(23, 59, 59)
-        naive_dt = datetime.combine(self.date, t)
-        if timezone.is_naive(naive_dt):
-            return timezone.make_aware(naive_dt, timezone.get_current_timezone())
-        return naive_dt
+        naive = dt.combine(self.date, t)
+        return timezone.make_aware(naive, timezone.get_current_timezone()) \
+            if timezone.is_naive(naive) else naive
 
     @property
     def is_past(self) -> bool:
         return self._end_dt() <= timezone.now()
 
+    def start_dt(self):
+        """
+        A timezone-aware datetime for the shift start (00:00 fallback).
+        """
+        t = self.start_time or dtime(0, 0, 0)
+        naive = dt.combine(self.date, t)
+        return timezone.make_aware(naive, timezone.get_current_timezone()) \
+            if timezone.is_naive(naive) else naive
+
     # Normalize postcode before saving
     def save(self, *args, **kwargs):
         self.allowed_postcode = _normalize_postcode(self.allowed_postcode)
         super().save(*args, **kwargs)
-    
-    def start_dt(self):
-        """
-        A timezone-aware datetime for the shift start (or 00:00 if start_time missing).
-        """
-        t = self.start_time or dtime(0, 0, 0)
-        naive = dt.combine(self.date, t)
-        return timezone.make_aware(naive, timezone.get_current_timezone()) if timezone.is_naive(naive) else naive
 
-    def end_dt(self):
-        """
-        A timezone-aware datetime for the shift end (falls back to _end_dt for your existing logic).
-        """
-        return self._end_dt()
+    class Meta:
+        ordering = ("date", "start_time", "title")
 
 
-class ShiftBooking(models.Model):
+class ShiftBooking(TenantOwned):
+    from django.conf import settings
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    shift = models.ForeignKey(Shift, on_delete=models.CASCADE)
+    shift = models.ForeignKey(Shift, on_delete=models.CASCADE, related_name="bookings")
     booked_at = models.DateTimeField(auto_now_add=True)
 
     # Punches (store where + the postcode that was resolved by the server)
@@ -114,6 +114,8 @@ class ShiftBooking(models.Model):
 
     
     admin_note = models.TextField(blank=True, null=True)
+    
+    objects = TenantManager()
     
     @property
     def is_completed(self) -> bool:

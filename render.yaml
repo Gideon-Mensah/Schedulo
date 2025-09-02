@@ -1,0 +1,26 @@
+# Render Blueprint for Django Multitenant App
+services:
+  - type: web
+    name: schedulo-web
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn Schedulo_app.wsgi:application"
+    envVars:
+      - key: SECRET_KEY
+        value: "your-secret-key"
+      - key: DB_NAME
+        value: "Schedulo"
+      - key: DB_USER
+        value: "postgres"
+      - key: DB_PASSWORD
+        value: "your-db-password"
+      - key: DB_HOST
+        value: "your-db-host"
+      - key: DB_PORT
+        value: "5432"
+      - key: ALLOWED_HOSTS
+        value: "yourapp.onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://yourapp.onrender.com"
+      # Add other environment variables as needed
+    autoDeploy: true

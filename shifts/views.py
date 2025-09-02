@@ -62,7 +62,7 @@ def create_shift(request):
 
 @user_passes_test(is_admin)
 def list_shifts(request):
-    shifts = Shift.objects.all().order_by("date", "start_time")
+    shifts = Shift.objects.filter(organization=request.tenant).order_by("date", "start_time")
     return render(request, "list_shifts.html", {"shifts": shifts})
 
 # ---------- Staff: Shifts & bookings ----------
@@ -89,9 +89,9 @@ def available_shifts(request):
     )
 
     shifts = (
-        Shift.objects.filter(future_q)
+        Shift.objects.filter(future_q, organization=request.tenant)
         .exclude(id__in=booked_shift_ids)
-        .annotate(booked_total=Count("shiftbooking"))
+        .annotate(booked_total=Count("bookings"))
         .filter(booked_total__lt=F("max_staff"))
         .order_by("date", "start_time")
     )
@@ -112,7 +112,7 @@ def book_shift(request, shift_id):
         messages.info(request, f"You have already booked '{shift.title}'.")
         return redirect("available_shifts")
 
-    booking = ShiftBooking.objects.create(user=request.user, shift=shift)
+    booking = ShiftBooking.objects.create(user=request.user, shift=shift, organization=shift.organization)
     messages.success(request, f"You have successfully booked '{shift.title}'.")
     
     # For Audit log
@@ -127,7 +127,7 @@ def book_shift(request, shift_id):
 def my_bookings(request):
     bookings = (
         ShiftBooking.objects.select_related("shift")
-        .filter(user=request.user)
+        .filter(user=request.user, organization=request.tenant)
         .order_by("-id")
     )
     
@@ -147,6 +147,7 @@ def completed_shifts(request):
         .select_related("shift")
         .filter(
             user=request.user,
+            organization=request.tenant,
             clock_in_at__isnull=False,
             clock_out_at__isnull=False,
             paid_at__isnull=True,     # NOT paid yet
@@ -163,6 +164,7 @@ def past_shifts(request):
         .select_related("shift")
         .filter(
             user=request.user,
+            organization=request.tenant,
             clock_in_at__isnull=False,
             clock_out_at__isnull=False,
             paid_at__isnull=False,    # already paid
@@ -592,7 +594,7 @@ def admin_dashboard(request):
     total_users = get_user_model().objects.count()
 
     available_shifts = (
-        Shift.objects.annotate(booked_total=Count("shiftbooking"))
+        Shift.objects.annotate(booked_total=Count("bookings"))
         .filter(booked_total__lt=F("max_staff"))
         .count()
     )
@@ -612,7 +614,7 @@ def admin_dashboard(request):
 
     upcoming_shifts = (
         Shift.objects.filter(future_q)
-        .annotate(booked_count=Count("shiftbooking"))
+        .annotate(booked_count=Count("bookings"))
         .order_by("date", "start_time")[:8]
     )
 
@@ -749,7 +751,7 @@ def admin_manage_shifts(request):
 
     shifts_qs = (
         Shift.objects.filter(future_q)
-        .annotate(booked_total=Count("shiftbooking"))
+        .annotate(booked_total=Count("bookings"))
         .order_by("date", "start_time", "title")
     )
 
@@ -788,7 +790,7 @@ def admin_manage_shifts(request):
     booked_upcoming = (
         Shift.objects
         .filter(future_q)
-        .annotate(c=Count("shiftbooking"))
+        .annotate(c=Count("bookings"))
         .filter(c__gt=0)
         .count()
     )
