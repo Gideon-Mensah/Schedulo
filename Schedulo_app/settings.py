@@ -73,11 +73,17 @@ ROOT_URLCONF = 'Schedulo_app.urls'
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-secret")
+DEBUG = os.environ.get("DEBUG", "False") == "True"
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".onrender.com"]
+
+# DATABASES: use Render's DATABASE_URL if present; else SQLite
 if os.environ.get("DATABASE_URL"):
     DATABASES = {
         "default": dj_database_url.config(
             conn_max_age=600,
-            ssl_require=True
+            ssl_require=True,
         )
     }
 else:
