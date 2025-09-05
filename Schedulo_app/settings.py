@@ -13,8 +13,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 import dj_database_url
-import os
-from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -129,6 +127,16 @@ WSGI_APPLICATION = 'Schedulo_app.wsgi.application'
 # }
 
 DATABASES = {
+    "default": dj_database_url.config(
+        default="postgresql://schedulo_user:OPWoU3wFLtRA1GhZ39MYPAbDKf6J8gr5@dpg-d2kl0ogjc7sa8vg10-a.oregon-postgres.render.com:5432/schedulo",
+        conn_max_age=600,
+        ssl_require=True,   # <— forces sslmode=require
+    )
+}
+
+
+
+DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ["DB_NAME"],
@@ -137,7 +145,7 @@ DATABASES = {
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ.get("DB_PORT", "5432"),
     }
-}
+ }
 
 
 # Password validation
@@ -174,8 +182,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / "staticfiles"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
