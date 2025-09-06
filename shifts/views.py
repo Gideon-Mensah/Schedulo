@@ -33,6 +33,7 @@ from .models import ComplianceDocType, Shift, ShiftBooking
 from .models import ComplianceDocument
 from .utils import log_audit
 from .models import AuditAction
+import logging
 ## Removed import of ComplianceUploadForm, ComplianceReviewForm (do not exist)
 
 # ---------- Helpers ----------
@@ -42,6 +43,9 @@ def is_admin(user):
 User = get_user_model()
 
 # ---------- Admin: create / list shifts ----------
+
+
+logger = logging.getLogger("django")
 @login_required
 def create_shift(request):
     """
