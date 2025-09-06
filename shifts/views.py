@@ -47,17 +47,16 @@ def create_shift(request):
         form = ShiftForm(request.POST)
         if form.is_valid():
             shift = form.save(commit=False)
-            if not request.tenant:
-                messages.error(request, "No organization found for this domain. Cannot create shift.")
+            user_org = getattr(getattr(request.user, "profile", None), "organization", None)
+            if not user_org:
+                messages.error(request, "No organization found in your profile. Cannot create shift.")
                 return render(request, "create_shift.html", {"form": form})
-            shift.organization = request.tenant
+            shift.organization = user_org
             shift.save()
-            
             # For Audit log
             log_audit(actor=request.user, action=AuditAction.SHIFT_CREATED, shift=shift,
               message=f"Shift '{shift.title}' on {shift.date} created.",
               role=shift.role, start=str(shift.start_time), end=str(shift.end_time))
-            
             return redirect("admin_manage_shifts")
     else:
         form = ShiftForm()
