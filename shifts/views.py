@@ -53,6 +53,7 @@ def create_shift(request):
                 return render(request, "create_shift.html", {"form": form})
             shift.organization = user_org
             shift.save()
+            print(f"DEBUG: Shift saved with id {shift.id} and organization {shift.organization}")
             # For Audit log
             log_audit(actor=request.user, action=AuditAction.SHIFT_CREATED, shift=shift,
               message=f"Shift '{shift.title}' on {shift.date} created.",
