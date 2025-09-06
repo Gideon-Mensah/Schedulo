@@ -47,7 +47,10 @@ def create_shift(request):
         form = ShiftForm(request.POST)
         if form.is_valid():
             shift = form.save(commit=False)
-            shift.organization = request.tenant  # Set organization from middleware
+            if not request.tenant:
+                messages.error(request, "No organization found for this domain. Cannot create shift.")
+                return render(request, "create_shift.html", {"form": form})
+            shift.organization = request.tenant
             shift.save()
             
             # For Audit log
