@@ -15,5 +15,5 @@ class TenantMiddleware(MiddlewareMixin):
         host = request.get_host().split(":")[0].lower()
         domain = Domain.objects.select_related("organization").filter(domain=host, is_active=True).first()
         org = domain.organization if domain else None
-        request.organization = org
+        request.tenant = org
         set_current_org(org)
