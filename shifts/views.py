@@ -15,6 +15,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.views import LoginView
+from django.db import transaction
 from django.db.models import Count, F, Q
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
@@ -41,29 +42,53 @@ def is_admin(user):
 User = get_user_model()
 
 # ---------- Admin: create / list shifts ----------
-@user_passes_test(is_admin)
+@login_required
 def create_shift(request):
+    """
+    Create a Shift for the current user's organization.
+    - Requires the user to have a profile with an organization.
+    - Uses atomic transaction so the audit log and shift save are consistent.
+    """
+    # Resolve user's organization (fail fast with a friendly message)
+    try:
+        user_org = request.user.profile.organization
+    except AttributeError:
+        messages.error(request, "You must belong to an organization to create shifts.")
+        return redirect("profile_setup")  # or render the form page; adjust to your flow
+
     if request.method == "POST":
         form = ShiftForm(request.POST)
         if form.is_valid():
             shift = form.save(commit=False)
-            user_org = getattr(getattr(request.user, "profile", None), "organization", None)
-            if not user_org:
-                messages.error(request, "No organization found in your profile. Cannot create shift.")
-                return render(request, "create_shift.html", {"form": form})
             shift.organization = user_org
-            shift.save()
-            print(f"DEBUG: Shift saved with id {shift.id} and organization {shift.organization}")
-            # For Audit log
-            log_audit(actor=request.user, action=AuditAction.SHIFT_CREATED, shift=shift,
-              message=f"Shift '{shift.title}' on {shift.date} created.",
-              role=shift.role, start=str(shift.start_time), end=str(shift.end_time))
-            return redirect("admin_manage_shifts")
+            # Optional: track creator if your model has it
+            # shift.created_by = request.user
+
+            try:
+                with transaction.atomic():
+                    shift.save()
+                    log_audit(
+                        actor=request.user,
+                        action=AuditAction.SHIFT_CREATED,
+                        shift=shift,
+                        message=f"Shift '{shift.title}' on {shift.date} created.",
+                        role=shift.role,
+                        start=str(shift.start_time),
+                        end=str(shift.end_time),
+                    )
+                logger.debug("Shift %s saved for org %s", shift.id, user_org)
+                messages.success(request, "Shift created successfully.")
+                return redirect("admin_manage_shifts")
+            except Exception as exc:
+                logger.exception("Failed to create shift: %s", exc)
+                messages.error(request, "Something went wrong while creating the shift. Please try again.")
+        else:
+            # Optional: show a compact error summary
+            messages.error(request, "Please fix the errors below.")
     else:
         form = ShiftForm()
+
     return render(request, "create_shift.html", {"form": form})
-
-
 
 @user_passes_test(is_admin)
 def list_shifts(request):
