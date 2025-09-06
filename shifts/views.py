@@ -46,7 +46,9 @@ def create_shift(request):
     if request.method == "POST":
         form = ShiftForm(request.POST)
         if form.is_valid():
-            shift = form.save()
+            shift = form.save(commit=False)
+            shift.organization = request.tenant  # Set organization from middleware
+            shift.save()
             
             # For Audit log
             log_audit(actor=request.user, action=AuditAction.SHIFT_CREATED, shift=shift,
