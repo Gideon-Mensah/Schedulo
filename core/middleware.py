@@ -1,4 +1,5 @@
 from core.models import Organization
+from core.org_context import org_context
 
 ACTIVE_ORG_SESSION_KEY = "active_org_id"
 
@@ -31,7 +32,7 @@ class CurrentOrgMiddleware:
 
         # activate tenant context for the request
         if org is not None:
-            with Organization.as_current(org):
+            with org_context(org):
                 return self.get_response(request)
 
         return self.get_response(request)
