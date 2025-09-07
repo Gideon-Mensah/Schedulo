@@ -10,12 +10,13 @@ from datetime import date, timedelta
 from io import BytesIO
 
 import requests
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.views import LoginView
-from django.db import transaction
+from django.db import transaction, IntegrityError, DatabaseError, connection
 from django.db.models import Count, F, Q
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
@@ -35,8 +36,8 @@ from .models import ComplianceDocType, Shift, ShiftBooking
 from .models import ComplianceDocument
 from .utils import log_audit
 from .models import AuditAction
-import logging
-## Removed import of ComplianceUploadForm, ComplianceReviewForm (do not exist)
+import logging, traceback
+logger = logging.getLogger(__name__)
 
 # ---------- Helpers ----------
 def is_admin(user):
@@ -55,7 +56,7 @@ def create_shift(request):
     - Requires the user to have a profile with an organization.
     - Uses atomic transaction so the audit log and shift save are consistent.
     """
-    # Resolve user's organization (fail fast with a friendly message)
+    # 1) Preconditions: profile org + tenant present and matching
     try:
         user_org = request.user.profile.organization
     except AttributeError:
@@ -67,7 +68,6 @@ def create_shift(request):
         messages.error(request, "No active workspace detected. Please select an organization.")
         return redirect("home")
 
-    # Enforce tenant/profile consistency
     if getattr(user_org, "pk", None) != getattr(tenant, "pk", None):
         messages.error(request, "Your profile organization doesn't match the active workspace.")
         return redirect("admin_manage_shifts")
@@ -77,28 +77,47 @@ def create_shift(request):
         if form.is_valid():
             shift = form.save(commit=False)
             shift.organization = tenant
+
             try:
                 with transaction.atomic():
                     with org_context(tenant):
                         shift.save()
                         logger.info(
-                            "Shift saved id=%s org_id=%s db=%s",
-                            shift.id, shift.organization_id, shift._state.db
+                            "Shift saved id=%s org_id=%s db_alias=%s vendor=%s",
+                            shift.id, shift.organization_id, shift._state.db, connection.vendor
                         )
-                    transaction.on_commit(lambda: log_audit(
-                        actor=request.user,
-                        action=AuditAction.SHIFT_CREATED,
-                        shift=shift,
-                        message=f"Shift '{shift.title}' on {shift.date} created.",
-                        role=shift.role,
-                        start=str(shift.start_time),
-                        end=str(shift.end_time),
-                    ))
+
+                    # 2) Defer audit so audit errors NEVER roll back the shift
+                    def _after_commit():
+                        try:
+                            log_audit(
+                                actor=request.user,
+                                action=AuditAction.SHIFT_CREATED,
+                                shift=shift,
+                                message=f"Shift '{shift.title}' on {shift.date} created.",
+                                role=shift.role,
+                                start=str(shift.start_time),
+                                end=str(shift.end_time),
+                            )
+                        except Exception as audit_exc:
+                            logger.exception("Audit log failed post-commit: %s", audit_exc)
+
+                    transaction.on_commit(_after_commit)
+
                 messages.success(request, "Shift created successfully.")
                 return redirect("admin_manage_shifts")
+
+            except (IntegrityError, DatabaseError) as db_exc:
+                logger.exception("DB error creating shift")
+                msg = f"Database error while creating the shift: {db_exc}" if settings.DEBUG else "Database error while creating the shift."
+                messages.error(request, msg)
+
             except Exception as exc:
-                logger.exception("Failed to create shift: %s", exc)
-                messages.error(request, "Something went wrong while creating the shift. Please try again.")
+                # 3) Show full traceback in DEBUG so we see the real cause in logs
+                tb = traceback.format_exc()
+                logger.error("Unexpected error creating shift: %s\n%s", exc, tb)
+                msg = f"Unexpected error: {exc}" if settings.DEBUG else "Something went wrong while creating the shift. Please try again."
+                messages.error(request, msg)
         else:
             messages.error(request, "Please fix the errors below.")
     else:
