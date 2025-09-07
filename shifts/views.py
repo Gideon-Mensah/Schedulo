@@ -60,17 +60,23 @@ def create_shift(request):
         messages.error(request, "You must belong to an organization to create shifts.")
         return redirect("profile_setup")  # or render the form page; adjust to your flow
 
+    # Enforce tenant/profile consistency
+    if getattr(request, "tenant", None) and user_org != request.tenant:
+        messages.error(request, "Your profile organization doesn't match the active workspace.")
+        return redirect("admin_manage_shifts")
+
     if request.method == "POST":
         form = ShiftForm(request.POST)
         if form.is_valid():
             shift = form.save(commit=False)
-            shift.organization = user_org
+            shift.organization = getattr(request, "tenant", user_org)  # use tenant
             # Optional: track creator if your model has it
             # shift.created_by = request.user
 
             try:
                 with transaction.atomic():
                     shift.save()
+                    logger.debug("Saved shift %s on org=%s (tenant=%s)", shift.id, shift.organization_id, getattr(request, "tenant", None))
                     log_audit(
                         actor=request.user,
                         action=AuditAction.SHIFT_CREATED,
@@ -80,7 +86,6 @@ def create_shift(request):
                         start=str(shift.start_time),
                         end=str(shift.end_time),
                     )
-                logger.debug("Shift %s saved for org %s", shift.id, user_org)
                 messages.success(request, "Shift created successfully.")
                 return redirect("admin_manage_shifts")
             except Exception as exc:
@@ -623,12 +628,13 @@ def _attendance_xlsx(rows, start, end):
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
-    total_shifts = Shift.objects.count()
-    total_bookings = ShiftBooking.objects.count()
-    total_users = get_user_model().objects.count()
+    total_shifts = Shift.objects.filter(organization=request.tenant).count()
+    total_bookings = ShiftBooking.objects.filter(organization=request.tenant).count()
+    total_users = get_user_model().objects.filter(profile__organization=request.tenant).count()
 
     available_shifts = (
-        Shift.objects.annotate(booked_total=Count("bookings"))
+        Shift.objects.filter(organization=request.tenant)
+        .annotate(booked_total=Count("bookings"))
         .filter(booked_total__lt=F("max_staff"))
         .count()
     )
@@ -647,7 +653,7 @@ def admin_dashboard(request):
     )
 
     upcoming_shifts = (
-        Shift.objects.filter(future_q)
+        Shift.objects.filter(future_q, organization=request.tenant)
         .annotate(booked_count=Count("bookings"))
         .order_by("date", "start_time")[:8]
     )
@@ -655,13 +661,14 @@ def admin_dashboard(request):
     recent_bookings = (
         ShiftBooking.objects
         .select_related('user', 'shift')
-        .filter(paid_at__isnull=True)          # <— exclude paid
+        .filter(paid_at__isnull=True, organization=request.tenant)
         .order_by('-booked_at')[:8]
     )
 
     top_staff = (
         get_user_model()
-        .objects.annotate(bookings_count=Count("shiftbooking"))
+        .objects.filter(profile__organization=request.tenant)
+        .annotate(bookings_count=Count("shiftbooking"))
         .order_by("-bookings_count", "username")[:8]
     )
 
@@ -669,7 +676,8 @@ def admin_dashboard(request):
     start_day = today_local - timedelta(days=13)
     bookings_by_day_qs = (
         ShiftBooking.objects.filter(
-            booked_at__date__gte=start_day, booked_at__date__lte=today_local
+            booked_at__date__gte=start_day, booked_at__date__lte=today_local,
+            organization=request.tenant
         )
         .annotate(day=TruncDate("booked_at"))
         .values("day")
@@ -784,7 +792,7 @@ def admin_manage_shifts(request):
     )
 
     shifts_qs = (
-        Shift.objects.filter(future_q)
+        Shift.objects.filter(future_q, organization=request.tenant)
         .annotate(booked_total=Count("bookings"))
         .order_by("date", "start_time", "title")
     )
