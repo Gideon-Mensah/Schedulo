@@ -26,6 +26,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_control, never_cache
 from django.views.decorators.http import require_POST
 
+from core.org_context import org_context
+
 from .utils import user_is_compliant_for_role
 
 from .forms import AdminComplianceUploadForm, AdminUserCreateForm, ShiftForm
@@ -60,8 +62,13 @@ def create_shift(request):
         messages.error(request, "You must belong to an organization to create shifts.")
         return redirect("profile_setup")  # or render the form page; adjust to your flow
 
+    tenant = getattr(request, "tenant", None)
+    if tenant is None:
+        messages.error(request, "No active workspace detected. Please select an organization.")
+        return redirect("home")
+
     # Enforce tenant/profile consistency
-    if getattr(request, "tenant", None) and user_org != request.tenant:
+    if getattr(user_org, "pk", None) != getattr(tenant, "pk", None):
         messages.error(request, "Your profile organization doesn't match the active workspace.")
         return redirect("admin_manage_shifts")
 
@@ -69,15 +76,16 @@ def create_shift(request):
         form = ShiftForm(request.POST)
         if form.is_valid():
             shift = form.save(commit=False)
-            shift.organization = getattr(request, "tenant", user_org)  # use tenant
-            # Optional: track creator if your model has it
-            # shift.created_by = request.user
-
+            shift.organization = tenant
             try:
                 with transaction.atomic():
-                    shift.save()
-                    logger.debug("Saved shift %s on org=%s (tenant=%s)", shift.id, shift.organization_id, getattr(request, "tenant", None))
-                    log_audit(
+                    with org_context(tenant):
+                        shift.save()
+                        logger.info(
+                            "Shift saved id=%s org_id=%s db=%s",
+                            shift.id, shift.organization_id, shift._state.db
+                        )
+                    transaction.on_commit(lambda: log_audit(
                         actor=request.user,
                         action=AuditAction.SHIFT_CREATED,
                         shift=shift,
@@ -85,14 +93,13 @@ def create_shift(request):
                         role=shift.role,
                         start=str(shift.start_time),
                         end=str(shift.end_time),
-                    )
+                    ))
                 messages.success(request, "Shift created successfully.")
                 return redirect("admin_manage_shifts")
             except Exception as exc:
                 logger.exception("Failed to create shift: %s", exc)
                 messages.error(request, "Something went wrong while creating the shift. Please try again.")
         else:
-            # Optional: show a compact error summary
             messages.error(request, "Please fix the errors below.")
     else:
         form = ShiftForm()
