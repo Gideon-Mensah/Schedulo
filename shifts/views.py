@@ -26,6 +26,8 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_control, never_cache
 from django.views.decorators.http import require_POST
+from core.tenant import org_context, get_current_org
+
 
 from core.org_context import org_context
 
@@ -79,46 +81,46 @@ def create_shift(request):
             shift = form.save(commit=False)
             shift.organization = tenant
 
-            # try:
-            with transaction.atomic():
-                with org_context(tenant):
-                    shift.save()
-                    logger.info(
-                        "Shift saved id=%s org_id=%s db_alias=%s vendor=%s",
-                        shift.id, shift.organization_id, shift._state.db, connection.vendor
-                    )
-
-                # 2) Defer audit so audit errors NEVER roll back the shift
-                def _after_commit():
-                    try:
-                        log_audit(
-                            actor=request.user,
-                            action=AuditAction.SHIFT_CREATED,
-                            shift=shift,
-                            message=f"Shift '{shift.title}' on {shift.date} created.",
-                            role=shift.role,
-                            start=str(shift.start_time),
-                            end=str(shift.end_time),
+            try:
+                with transaction.atomic():
+                    with org_context(tenant):
+                        shift.save()
+                        logger.info(
+                            "Shift saved id=%s org_id=%s db_alias=%s vendor=%s",
+                            shift.id, shift.organization_id, shift._state.db, connection.vendor
                         )
-                    except Exception as audit_exc:
-                        logger.exception("Audit log failed post-commit: %s", audit_exc)
 
-                transaction.on_commit(_after_commit)
+                    # 2) Defer audit so audit errors NEVER roll back the shift
+                    def _after_commit():
+                        try:
+                            log_audit(
+                                actor=request.user,
+                                action=AuditAction.SHIFT_CREATED,
+                                shift=shift,
+                                message=f"Shift '{shift.title}' on {shift.date} created.",
+                                role=shift.role,
+                                start=str(shift.start_time),
+                                end=str(shift.end_time),
+                            )
+                        except Exception as audit_exc:
+                            logger.exception("Audit log failed post-commit: %s", audit_exc)
 
-            messages.success(request, "Shift created successfully.")
-            return redirect("admin_manage_shifts")
+                    transaction.on_commit(_after_commit)
 
-            # except (IntegrityError, DatabaseError) as db_exc:
-            #     logger.exception("DB error creating shift")
-            #     msg = f"Database error while creating the shift: {db_exc}" if settings.DEBUG else "Database error while creating the shift."
-            #     messages.error(request, msg)
+                messages.success(request, "Shift created successfully.")
+                return redirect("admin_manage_shifts")
 
-            # except Exception as exc:
-            #     # 3) Show full traceback in DEBUG so we see the real cause in logs
-            #     tb = traceback.format_exc()
-            #     logger.error("Unexpected error creating shift: %s\n%s", exc, tb)
-            #     msg = f"Unexpected error: {exc}" if settings.DEBUG else "Something went wrong while creating the shift. Please try again."
-            #     messages.error(request, msg)
+            except (IntegrityError, DatabaseError) as db_exc:
+                logger.exception("DB error creating shift")
+                msg = f"Database error while creating the shift: {db_exc}" if settings.DEBUG else "Database error while creating the shift."
+                messages.error(request, msg)
+
+            except Exception as exc:
+                # 3) Show full traceback in DEBUG so we see the real cause in logs
+                tb = traceback.format_exc()
+                logger.error("Unexpected error creating shift: %s\n%s", exc, tb)
+                msg = f"Unexpected error: {exc}" if settings.DEBUG else "Something went wrong while creating the shift. Please try again."
+                messages.error(request, msg)
         else:
             messages.error(request, "Please fix the errors below.")
     else:
