@@ -51,6 +51,7 @@ User = get_user_model()
 logger = logging.getLogger("django")
 @login_required
 def create_shift(request):
+    logger.debug(f"[DEBUG] request.tenant: {getattr(request, 'tenant', None)}")
     """
     Create a Shift for the current user's organization.
     - Requires the user to have a profile with an organization.
