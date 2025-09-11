@@ -1,23 +1,23 @@
 # core/tenant.py
 from contextvars import ContextVar
-from typing import Optional
-from .models import Organization  # adjust if Organization lives elsewhere
+from typing import Optional, TYPE_CHECKING
 
-_CURRENT_ORG: ContextVar[Optional[Organization]] = ContextVar("CURRENT_ORG", default=None)
+if TYPE_CHECKING:
+    # Type-only import to avoid circular import at runtime
+    from .models import Organization
 
-def set_current_org(org: Optional[Organization]) -> None:
+# Store the actual Organization instance (no runtime import needed)
+_CURRENT_ORG: ContextVar[Optional["Organization"]] = ContextVar("CURRENT_ORG", default=None)
+
+def set_current_org(org: Optional["Organization"]) -> None:
     _CURRENT_ORG.set(org)
 
-def get_current_org() -> Optional[Organization]:
+def get_current_org() -> Optional["Organization"]:
     return _CURRENT_ORG.get()
 
 class org_context:
-    """
-    Usage:
-        with org_context(org):
-            ... saves/queries on TenantOwned models ...
-    """
-    def __init__(self, org: Optional[Organization]):
+    """with org_context(org): activate current org for this block."""
+    def __init__(self, org: Optional["Organization"]):
         self.org = org
         self._token = None
 
