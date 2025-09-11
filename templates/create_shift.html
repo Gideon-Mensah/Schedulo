@@ -17,6 +17,12 @@
     </a>
   </div>
 
+  <!-- Show user's organization -->
+  <div class="mb-3">
+    <label class="form-label">Your Organization</label>
+    <input type="text" class="form-control" value="{{ org_name }}" readonly>
+  </div>
+
   <!-- Global form errors -->
   {% if form.non_field_errors %}
     <div class="alert alert-danger">

@@ -24,6 +24,7 @@ class ShiftForm(forms.ModelForm):
             "allowed_postcode": forms.TextInput(attrs={
                 "class": "form-control",
                 "placeholder": "e.g. SW1A 1AA (optional)"
+            
             }),
         }
 

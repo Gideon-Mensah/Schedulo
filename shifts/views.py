@@ -123,8 +123,9 @@ def create_shift(request):
             messages.error(request, "Please fix the errors below.")
     else:
         form = ShiftForm()
-
-    return render(request, "create_shift.html", {"form": form})
+    org_name = getattr(getattr(request.user, 'profile', None), 'organization', None)
+    org_name = getattr(org_name, 'name', "") if org_name else ""
+    return render(request, "create_shift.html", {"form": form, "org_name": org_name})
 
 @user_passes_test(is_admin)
 def list_shifts(request):
