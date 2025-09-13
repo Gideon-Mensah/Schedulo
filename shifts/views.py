@@ -137,33 +137,47 @@ def list_shifts(request):
 # ---------- Staff: Shifts & bookings ----------
 @login_required
 def available_shifts(request):
+    # ---- resolve active tenant/org ----
+    tenant = getattr(request, "tenant", None)
+    if tenant is None:
+        tenant = getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
     now = timezone.localtime()
     today = now.date()
     current_time = now.time()
 
+    # upcoming: future dates, or later today if not finished
     future_q = (
-        Q(date__gt=today)
-        | (
-            Q(date=today)
-            & (
-                Q(end_time__gt=current_time)
-                | Q(end_time__isnull=True, start_time__gt=current_time)
-                | Q(start_time__isnull=True, end_time__isnull=True)
+        Q(date__gt=today) |
+        (
+            Q(date=today) & (
+                Q(end_time__gt=current_time) |
+                Q(end_time__isnull=True, start_time__gt=current_time) |
+                Q(start_time__isnull=True, end_time__isnull=True)
             )
         )
     )
 
+    # shifts the user has already booked (org-scoped explicitly)
     booked_shift_ids = (
-        ShiftBooking.objects.filter(user=request.user).values_list("shift_id", flat=True)
+        ShiftBooking._base_manager
+        .filter(user=request.user, organization=tenant)
+        .values_list("shift_id", flat=True)
     )
 
+    # available shifts = org-scoped upcoming, not already booked, not full
     shifts = (
-        Shift.objects.filter(future_q, organization=request.tenant)
+        Shift._base_manager
+        .filter(future_q, organization=tenant)
         .exclude(id__in=booked_shift_ids)
-        .annotate(booked_total=Count("bookings"))
+        .annotate(booked_total=Count("bookings", distinct=True))
         .filter(booked_total__lt=F("max_staff"))
         .order_by("date", "start_time")
     )
+
     return render(request, "available_shifts.html", {"shifts": shifts})
 
 
@@ -377,21 +391,7 @@ def clock_in(request, booking_id):
             n = _norm(s)
             return n[:-3] if len(n) > 3 else n
 
-        if not (_norm(resolved_pc) == _norm(target_pc_raw) or _outward(resolved_pc) == _outward(target_pc_raw)):
-            return _clock_json(
-                False, f"Postcode mismatch. Detected: {resolved_pc}; expected: {target_pc_raw}.", status=403
-            )
-
-    if booking.clock_in_at:
-        return _clock_json(True, "Already clocked in.")
-
-    booking.clock_in_at = timezone.now()
-    booking.clock_in_lat = lat
-    booking.clock_in_lng = lng
-    booking.clock_in_postcode = resolved_pc or None
-    booking.save()
-    
-    # For Audit log
+        if not (_norm(resolved_pc) == _norm(target_pc_raw) or _outward(resolved_pc) == _outward(target_pc_raw
     log_audit(actor=request.user, subject=request.user, action=AuditAction.CLOCK_IN,
           shift=booking.shift, booking=booking,
           message="Clock in recorded.",
