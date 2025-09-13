@@ -34,6 +34,7 @@ urlpatterns = [
     path("cancel-booking/<int:booking_id>/", shift_views.cancel_booking, name="cancel_booking"),
     path("clock-in/<int:booking_id>/", shift_views.clock_in, name="clock_in"),
     path("clock-out/<int:booking_id>/", shift_views.clock_out, name="clock_out"),
+    path("my-paid-shifts/", shift_views.my_paid_shifts, name="my_paid_shifts"),
 
     # Admin pages
     path("admin/dashboard/", shift_views.admin_dashboard, name="admin_dashboard"),
