@@ -804,7 +804,7 @@ def admin_manage_shifts(request):
     """
     Manage upcoming shifts and book users onto them, showing per-user compliance.
     """
-    # ---- filters (lightweight; mirror your template fields) ----
+    # ---- filters (mirror template fields) ----
     title_q = (request.GET.get("title_q") or "").strip()
     role_q  = (request.GET.get("role") or "").strip()
     start_q = request.GET.get("start") or ""
@@ -812,17 +812,27 @@ def admin_manage_shifts(request):
     only_open = request.GET.get("only_open") == "1"
     user_q = (request.GET.get("user_q") or "").strip()
 
-    # base: upcoming (today onwards, not finished)
+    # ---- resolve active tenant/org ----
+    tenant = getattr(request, "tenant", None)
+    if tenant is None:
+        tenant = getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    # ---- base: upcoming (today onwards, not finished) ----
     now = timezone.localtime()
     today = now.date()
     current_time = now.time()
     future_q = (
-        Q(date__gt=today)
-        | (Q(date=today) & (Q(end_time__gt=current_time) | Q(end_time__isnull=True)))
+        Q(date__gt=today) |
+        (Q(date=today) & (Q(end_time__gt=current_time) | Q(end_time__isnull=True) | Q(start_time__gt=current_time)))
     )
 
+    # shifts list (org-scoped)
     shifts_qs = (
-        Shift.objects.filter(future_q, organization=request.tenant)
+        Shift._base_manager  # bypass TenantManager to avoid any hidden filters
+        .filter(future_q, organization=tenant)
         .annotate(booked_total=Count("bookings"))
         .order_by("date", "start_time", "title")
     )
@@ -838,10 +848,14 @@ def admin_manage_shifts(request):
     if only_open:
         shifts_qs = shifts_qs.filter(booked_total__lt=F("max_staff"))
 
-    upcoming_shifts = list(shifts_qs[:50])  # keep it snappy
+    upcoming_shifts = list(shifts_qs[:50])
 
-    # Users to show in the dropdowns (filter by query)
-    users_qs = User.objects.filter(is_active=True).order_by("username")
+    # users dropdown (org-scoped) — adjust if staff can book cross-org
+    users_qs = (
+        User.objects
+        .filter(is_active=True, profile__organization=tenant)
+        .order_by("username")
+    )
     if user_q:
         users_qs = users_qs.filter(
             Q(username__icontains=user_q) |
@@ -851,27 +865,31 @@ def admin_manage_shifts(request):
         )
     users = list(users_qs[:300])
 
-    # For each shift, compute (user, is_compliant) pairs and attach to the shift.
+    # attach (user, is_compliant) rows
     for sh in upcoming_shifts:
         sh.user_rows = [(u, user_is_compliant_for_role(u, sh.role)) for u in users]
 
-    # Top metrics
-    total_shifts = Shift.objects.count()
-    total_users  = User.objects.count()
-    available_upcoming = Shift.objects.filter(future_q).count()
+    # ---- metrics (ALL org-scoped so they match the list) ----
+    total_shifts = Shift._base_manager.filter(organization=tenant).count()
+    total_users  = User.objects.filter(profile__organization=tenant).count()
+    available_upcoming = (
+        Shift._base_manager.filter(future_q, organization=tenant)
+        .annotate(c=Count("bookings"))
+        .filter(c__lt=F("max_staff"))
+        .count()
+    )
     booked_upcoming = (
-        Shift.objects
-        .filter(future_q)
+        Shift._base_manager.filter(future_q, organization=tenant)
         .annotate(c=Count("bookings"))
         .filter(c__gt=0)
         .count()
     )
 
-    # Add recent bookings for admin actions
+    # recent bookings (org-scoped)
     recent_bookings = (
-        ShiftBooking.objects
+        ShiftBooking._base_manager
         .select_related("user", "shift")
-        .filter(paid_at__isnull=True)          # <— exclude paid
+        .filter(paid_at__isnull=True, organization=tenant)
         .order_by("-id")[:50]
     )
 
@@ -881,7 +899,7 @@ def admin_manage_shifts(request):
         "available_upcoming": available_upcoming,
         "booked_upcoming": booked_upcoming,
         "upcoming_shifts": upcoming_shifts,
-        "users": users,               # optional (we render using sh.user_rows)
+        "users": users,
         "title_q": title_q,
         "role_q": role_q,
         "start_q": start_q,
