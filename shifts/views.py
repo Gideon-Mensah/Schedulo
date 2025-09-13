@@ -658,80 +658,75 @@ def _attendance_xlsx(rows, start, end):
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
-    total_shifts = Shift.objects.filter(organization=request.tenant).count()
-    total_bookings = ShiftBooking.objects.filter(organization=request.tenant).count()
-    total_users = get_user_model().objects.filter(profile__organization=request.tenant).count()
+    # ---- resolve active tenant/org (same pattern we used in admin_manage_shifts) ----
+    tenant = getattr(request, "tenant", None)
+    if tenant is None:
+        tenant = getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
 
+    # ---- dates/times ----
+    now = timezone.localtime()
+    today = now.date()
+    current_time = now.time()
+
+    # upcoming = strictly in future OR later today (not finished)
+    future_q = (
+        Q(date__gt=today) |
+        (Q(date=today) & (
+            Q(end_time__gt=current_time) |
+            Q(end_time__isnull=True, start_time__gt=current_time) |
+            Q(start_time__isnull=True, end_time__isnull=True)
+        ))
+    )
+
+    # ---- KPIs (all org-scoped) ----
+    total_shifts = Shift._base_manager.filter(organization=tenant).count()
+    total_bookings = ShiftBooking._base_manager.filter(organization=tenant).count()
+    total_users = get_user_model().objects.filter(profile__organization=tenant).count()
+
+    # available shifts = upcoming AND not full
     available_shifts = (
-        Shift.objects.filter(organization=request.tenant)
+        Shift._base_manager
+        .filter(future_q, organization=tenant)
         .annotate(booked_total=Count("bookings"))
         .filter(booked_total__lt=F("max_staff"))
         .count()
     )
 
-    now = timezone.localtime()
-    today = now.date()
-    current_time = now.time()
-
-    future_q = Q(date__gt=today) | (
-        Q(date=today)
-        & (
-            Q(end_time__gt=current_time)
-            | Q(end_time__isnull=True, start_time__gt=current_time)
-            | Q(start_time__isnull=True, end_time__isnull=True)
-        )
+    # today's shifts (any with date=today)
+    todays_shifts = (
+        Shift._base_manager
+        .filter(organization=tenant, date=today)
+        .count()
     )
 
+    # ---- Upcoming table (org-scoped) ----
     upcoming_shifts = (
-        Shift.objects.filter(future_q, organization=request.tenant)
+        Shift._base_manager
+        .filter(future_q, organization=tenant)
         .annotate(booked_count=Count("bookings"))
-        .order_by("date", "start_time")[:8]
+        .order_by("date", "start_time")[:10]
     )
 
-    recent_bookings = (
-        ShiftBooking.objects
-        .select_related('user', 'shift')
-        .filter(paid_at__isnull=True, organization=request.tenant)
-        .order_by('-booked_at')[:8]
+    # ---- Recent users list (org-scoped) ----
+    User = get_user_model()
+    users = (
+        User.objects
+        .filter(profile__organization=tenant)
+        .order_by("-date_joined" if hasattr(User, "date_joined") else "-id")[:10]
     )
-
-    top_staff = (
-        get_user_model()
-        .objects.filter(profile__organization=request.tenant)
-        .annotate(bookings_count=Count("shiftbooking"))
-        .order_by("-bookings_count", "username")[:8]
-    )
-
-    today_local = timezone.localdate()
-    start_day = today_local - timedelta(days=13)
-    bookings_by_day_qs = (
-        ShiftBooking.objects.filter(
-            booked_at__date__gte=start_day, booked_at__date__lte=today_local,
-            organization=request.tenant
-        )
-        .annotate(day=TruncDate("booked_at"))
-        .values("day")
-        .annotate(count=Count("id"))
-        .order_by("day")
-    )
-    counts_map = {row["day"]: row["count"] for row in bookings_by_day_qs}
-    labels = []
-    counts = []
-    for i in range(14):
-        d = start_day + timedelta(days=i)
-        labels.append(d.strftime("%b %d"))
-        counts.append(counts_map.get(d, 0))
 
     context = {
-        "total_shifts": total_shifts,
         "available_shifts": available_shifts,
         "total_bookings": total_bookings,
         "total_users": total_users,
+        "todays_shifts": todays_shifts,
         "upcoming_shifts": upcoming_shifts,
-        "recent_bookings": recent_bookings,
-        "top_staff": top_staff,
-        "chart_labels": labels,
-        "chart_counts": counts,
+        "users": list(users),
+        # (optional extras you had before)
+        "total_shifts": total_shifts,
     }
     return render(request, "admin/dashboard.html", context)
 
