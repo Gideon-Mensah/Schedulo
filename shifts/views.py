@@ -292,7 +292,7 @@ class NoCacheLoginView(LoginView):
     redirect_authenticated_user = True
 
     def get_success_url(self):
-        return reverse("admin_dashboard") if self.request.user.is_staff else reverse("home")
+        return reverse("account_profile")
 
     def render_to_response(self, context, **response_kwargs):
         resp = super().render_to_response(context, **response_kwargs)
