@@ -78,27 +78,49 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'Schedulo_app.urls'
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+USE_SQLITE = os.environ.get("USE_SQLITE", "0") == "1"  # only for local dev
 
-
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-secret")
-DEBUG = os.environ.get("DEBUG", "False") == "True"
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".onrender.com"]
-
-# DATABASES: use Render's DATABASE_URL if present; else SQLite
-if os.environ.get("DATABASE_URL"):
-    DATABASES = {
-        "default": dj_database_url.config(
-            conn_max_age=600,
-            ssl_require=True,
-        )
-    }
-else:
+if USE_SQLITE:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+else:
+    # Fail loudly if DATABASE_URL is missing in prod
+    DATABASES = {
+        "default": dj_database_url.config(
+            env="DATABASE_URL",              # must exist on Render
+            conn_max_age=600,
+            ssl_require=True,
+        )
+    }
+    if not DATABASES["default"]:
+        raise RuntimeError("DATABASE_URL is not set")
+
+# BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+# SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-secret")
+# DEBUG = os.environ.get("DEBUG", "False") == "True"
+# ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".onrender.com"]
+
+# # DATABASES: use Render's DATABASE_URL if present; else SQLite
+# if os.environ.get("DATABASE_URL"):
+#     DATABASES = {
+#         "default": dj_database_url.config(
+#             conn_max_age=600,
+#             ssl_require=True,
+#         )
+#     }
+# else:
+#     DATABASES = {
+#         "default": {
+#             "ENGINE": "django.db.backends.sqlite3",
+#             "NAME": BASE_DIR / "db.sqlite3",
+#         }
+#     }
 
 
 
