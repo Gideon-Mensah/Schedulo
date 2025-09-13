@@ -383,26 +383,27 @@ def clock_in(request, booking_id):
 
     if target_pc_raw:
         if not resolved_pc:
-            return _clock_json(
-                False,
-                "Could not determine your postcode from location. Please enable precise location (GPS) and try again.",
-                status=422,
-            )
+            return _clock_json(False, "Could not determine your postcode from location. Please enable precise location (GPS) and try again.", status=422)
 
         def _norm(s): return "".join(ch for ch in (s or "").upper() if ch.isalnum())
         def _outward(s):
-            n = _norm(s)
-            return n[:-3] if len(n) > 3 else n
+            n = _norm(s); return n[:-3] if len(n) > 3 else n
 
         if not (_norm(resolved_pc) == _norm(target_pc_raw) or _outward(resolved_pc) == _outward(target_pc_raw)):
-            return _clock_json(
-                False, f"Postcode mismatch. Detected: {resolved_pc}; expected: {target_pc_raw}.", status=403
-            )
+            return _clock_json(False, f"Postcode mismatch. Detected: {resolved_pc}; expected: {target_pc_raw}.", status=403)
+
+    # ✅ actually persist the clock-in
+    if not booking.clock_in_at:
+        booking.clock_in_at = timezone.now()
+        booking.clock_in_lat = lat
+        booking.clock_in_lng = lng
+        booking.clock_in_postcode = resolved_pc or None
+        booking.save(update_fields=["clock_in_at", "clock_in_lat", "clock_in_lng", "clock_in_postcode"])
 
     log_audit(actor=request.user, subject=request.user, action=AuditAction.CLOCK_IN,
-          shift=booking.shift, booking=booking,
-          message="Clock in recorded.",
-          detected_postcode=resolved_pc, lat=lat, lng=lng)
+              shift=booking.shift, booking=booking,
+              message="Clock in recorded.",
+              detected_postcode=resolved_pc, lat=lat, lng=lng)
 
     messages.success(request, "Clock-in recorded.")
     return _clock_json(True, "Clock-in successful.")
