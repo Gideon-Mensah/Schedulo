@@ -186,24 +186,24 @@
               <!-- User dropdown -->
               <li class="nav-item dropdown ms-2 list-unstyled">
                 <a
-                  class="nav-link dropdown-toggle d-inline-flex align-items-right"
+                  class="nav-link dropdown-toggle d-inline-flex align-items-center"
                   href="#"
                   id="userDropdown"
                   role="button"
                   data-bs-toggle="dropdown"
-                  aria-expanded="false">
-
+                  aria-expanded="false"
+                >
                   {{ request.user.first_name|default:request.user.username }}
                 </a>
-                
+
                 <ul class="dropdown-menu dropdown-menu-end mt-2 shadow" aria-labelledby="userDropdown">
                   <li><a class="dropdown-item" href="{% url 'account_profile' %}">My Profile</a></li>
                   <li><a class="dropdown-item" href="{% url 'account_password_change' %}">Change Password</a></li>
                   <li><hr class="dropdown-divider"></li>
                   <li>
-                    <form method="post" action="{% url 'logout' %}" class="px-3">
+                    <form method="post" action="{% url 'logout' %}">
                       {% csrf_token %}
-                      <button class="btn btn-danger w-100">Logout</button>
+                      <button type="submit" class="dropdown-item text-danger">Logout</button>
                     </form>
                   </li>
                 </ul>
