@@ -211,12 +211,20 @@ def book_shift(request, shift_id):
 
 @login_required
 def my_bookings(request):
+    # Resolve tenant/org (same pattern you use elsewhere)
+    tenant = getattr(request, "tenant", None)
+    if tenant is None:
+        tenant = getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
     bookings = (
         ShiftBooking.objects.select_related("shift")
-        .filter(user=request.user, organization=request.tenant)
+        .filter(user=request.user, organization=tenant)
         .order_by("-id")
     )
-    
+
     # Attach super-simple flags for the template
     for b in bookings:
         b.show_clock_in = (b.clock_in_at is None)
