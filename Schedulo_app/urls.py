@@ -44,6 +44,13 @@ urlpatterns = [
     path("admin/users/create/", shift_views.admin_user_create, name="admin_user_create"),
     path("admin/users/<int:user_id>/send-reset/", shift_views.admin_user_send_reset, name="admin_user_send_reset"),
 
+    # Admin actions used by Manage Shifts
+    path("admin/manage-shifts/book/", shift_views.admin_book_for_user, name="admin_book_for_user"),
+    path("admin/manage-shifts/booking/<int:booking_id>/cancel/", shift_views.admin_cancel_booking_admin, name="admin_cancel_booking_admin"),
+    path("admin/manage-shifts/booking/<int:booking_id>/clock-in/", shift_views.admin_clock_in_for_user, name="admin_clock_in_for_user"),
+    path("admin/manage-shifts/booking/<int:booking_id>/clock-out/", shift_views.admin_clock_out_for_user, name="admin_clock_out_for_user"),
+    path("admin/bookings/<int:booking_id>/mark-paid/", shift_views.admin_mark_booking_paid, name="admin_mark_booking_paid"),
+
     # Reports & compliance
     path("reports/attendance/", shift_views.attendance_report, name="attendance_report"),
     path("admin/paid-bookings/", shift_views.admin_paid_bookings, name="admin_paid_bookings"),
