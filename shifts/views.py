@@ -47,6 +47,9 @@ def is_admin(user):
 
 User = get_user_model()
 
+def _active_tenant(request):
+    return getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+
 # ---------- Admin: create / list shifts ----------
 
 
@@ -1119,7 +1122,8 @@ def admin_cancel_booking_admin(request, booking_id):
     """
     POST to cancel a booking by id.
     """
-    booking = get_object_or_404(ShiftBooking, pk=booking_id)
+    org = _active_tenant(request)
+    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=org)
     title = booking.shift.title
     username = booking.user.get_username()
     booking.delete()
@@ -1144,7 +1148,8 @@ def admin_clock_in_for_user(request, booking_id):
     override = request.POST.get("override") == "1"
     reason = (request.POST.get("reason") or "").strip()
 
-    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=request.tenant)
+    org = _active_tenant(request)
+    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=org)
 
     if booking.clock_in_at:
         messages.info(request, "Already clocked in.")
@@ -1180,7 +1185,8 @@ def admin_clock_out_for_user(request, booking_id):
     override = request.POST.get("override") == "1"
     reason = (request.POST.get("reason") or "").strip()
 
-    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=request.tenant)
+    org = _active_tenant(request)
+    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=org)
 
     if booking.clock_out_at:
         messages.info(request, "Already clocked out.")
