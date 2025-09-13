@@ -11,10 +11,11 @@ from shifts.views_audit import audit_log
 from accounts import views as accounts_views
 
 urlpatterns = [
-    # include shifts app urls (this brings in your ops/ routes)
-    path("", include("shifts.urls")),
+    # Bring in shifts/urls.py (ops/... action routes live here)
+    path("", include("shifts.urls")),   # MUST be before admin.site.urls
 
     # Home & auth
+    path("", shift_views.home, name="home"),
     path("home/", shift_views.home, name="home"),
     path("accounts/login/", NoCacheLoginView.as_view(template_name="login.html"), name="login"),
     path("accounts/", include("django.contrib.auth.urls")),
@@ -34,7 +35,7 @@ urlpatterns = [
     path("clock-in/<int:booking_id>/", shift_views.clock_in, name="clock_in"),
     path("clock-out/<int:booking_id>/", shift_views.clock_out, name="clock_out"),
 
-    # Admin dashboard & management (pages)
+    # Admin pages
     path("admin/dashboard/", shift_views.admin_dashboard, name="admin_dashboard"),
     path("admin/manage-shifts/", shift_views.admin_manage_shifts, name="admin_manage_shifts"),
     path("list_shifts/", shift_views.list_shifts, name="list_shifts"),
@@ -49,7 +50,7 @@ urlpatterns = [
     path("accounts/compliance/", shift_views.my_compliance, name="my_compliance"),
     path("admin/audit/", audit_log, name="audit_log"),
 
-    # Django admin site (keep this LAST so it doesn't swallow /admin/... above)
+    # Django admin site — keep LAST so it doesn't swallow /admin/... above
     path("admin/", admin.site.urls),
 ]
 
