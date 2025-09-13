@@ -39,18 +39,11 @@ class Shift(TenantOwned):
 
     # ---- Capacity helpers ----
     def booked_count(self) -> int:
-        return self.shiftbooking_set.count()
+        return self.bookings.count()
 
+    @property
     def has_space(self) -> bool:
         return self.booked_count() < self.max_staff
-
-    @property
-    def booked_count_prop(self) -> int:
-        return self.booked_count()
-
-    @property
-    def has_space_prop(self) -> bool:
-        return self.has_space()
 
     # ---- Time helpers ----
     def _end_dt(self):
