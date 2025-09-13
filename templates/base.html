@@ -52,6 +52,11 @@
         border: 1px solid var(--glass-border);
         box-shadow: var(--shadow);
       }
+
+      .navbar .dropdown-menu.user-menu {
+        transform: translate3d(0,0,0) !important; /* disable Popper's GPU offset jitter on iOS */
+        right: 0; left: auto;
+      }
     </style>
 
     <!-- Theme + card styles -->
@@ -209,8 +214,9 @@
                   id="userMenu"
                   data-bs-toggle="dropdown"
                   data-bs-auto-close="outside"
-                  data-bs-display="static"           <!-- keeps it positioned under the button on mobile -->
+                  data-bs-display="static"          
                   aria-expanded="false">
+
                   {{ request.user.first_name|default:request.user.username }}
                 </button>
 
