@@ -28,12 +28,9 @@ class Shift(TenantOwned):
     max_staff = models.IntegerField()
     allowed_postcode = models.CharField(max_length=16, null=True, blank=True)
 
-    def __str__(self):
-        return f"{self.title} ({self.date} {self.start_time}-{self.end_time})"
-
-
-
-    objects = TenantManager()
+    # 👇 managers
+    all_objects = models.Manager()     # unfiltered (for admin, debugging)
+    objects = TenantManager()          # tenant-scoped (for your app)
 
     def __str__(self):
         st = self.start_time.strftime("%H:%M") if self.start_time else "--:--"
@@ -57,10 +54,6 @@ class Shift(TenantOwned):
 
     # ---- Time helpers ----
     def _end_dt(self):
-        """
-        A timezone-aware datetime when this shift is considered 'over'
-        (end_time if present, else start_time, else 23:59:59).
-        """
         t = self.end_time or self.start_time or dtime(23, 59, 59)
         naive = dt.combine(self.date, t)
         return timezone.make_aware(naive, timezone.get_current_timezone()) \
@@ -71,21 +64,18 @@ class Shift(TenantOwned):
         return self._end_dt() <= timezone.now()
 
     def start_dt(self):
-        """
-        A timezone-aware datetime for the shift start (00:00 fallback).
-        """
         t = self.start_time or dtime(0, 0, 0)
         naive = dt.combine(self.date, t)
         return timezone.make_aware(naive, timezone.get_current_timezone()) \
             if timezone.is_naive(naive) else naive
 
-    # Normalize postcode before saving
     def save(self, *args, **kwargs):
         self.allowed_postcode = _normalize_postcode(self.allowed_postcode)
         super().save(*args, **kwargs)
 
     class Meta:
         ordering = ("date", "start_time", "title")
+
 
 
 class ShiftBooking(TenantOwned):

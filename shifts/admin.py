@@ -16,13 +16,15 @@ class ShiftAdmin(admin.ModelAdmin):
     list_filter = ("role", "date")
     search_fields = ("title", "location", "allowed_postcode")
     ordering = ("-date", "start_time")
-    
-    
-    
+
+    def get_queryset(self, request):
+        # Use the unfiltered manager so admin shows *all* shifts
+        return Shift.all_objects.all()
 
     def booked_count_admin(self, obj):
         return obj.shiftbooking_set.count()
     booked_count_admin.short_description = "Booked"
+
 
 @admin.register(ShiftBooking)
 class ShiftBookingAdmin(admin.ModelAdmin):
