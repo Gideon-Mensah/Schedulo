@@ -391,7 +391,11 @@ def clock_in(request, booking_id):
             n = _norm(s)
             return n[:-3] if len(n) > 3 else n
 
-        if not (_norm(resolved_pc) == _norm(target_pc_raw) or _outward(resolved_pc) == _outward(target_pc_raw
+        if not (_norm(resolved_pc) == _norm(target_pc_raw) or _outward(resolved_pc) == _outward(target_pc_raw)):
+            return _clock_json(
+                False, f"Postcode mismatch. Detected: {resolved_pc}; expected: {target_pc_raw}.", status=403
+            )
+
     log_audit(actor=request.user, subject=request.user, action=AuditAction.CLOCK_IN,
           shift=booking.shift, booking=booking,
           message="Clock in recorded.",
