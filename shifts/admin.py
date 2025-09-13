@@ -18,9 +18,8 @@ class ShiftAdmin(admin.ModelAdmin):
     ordering = ("-date", "start_time")
 
     def get_queryset(self, request):
-    # Start from the unfiltered manager, but keep search/order support
-        return Shift.all_objects.all()
-
+        # Use the default manager to avoid AttributeError if all_objects does not exist
+        return super().get_queryset(request)
 
     def booked_count_admin(self, obj):
         return obj.shiftbooking_set.count()
