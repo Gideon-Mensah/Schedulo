@@ -306,7 +306,10 @@ class NoCacheLoginView(LoginView):
 @cache_control(no_store=True, no_cache=True, must_revalidate=True)
 @never_cache
 def home(request):
-    return render(request, "home.html")
+    # send staff to dashboard, others to the booking page
+    if request.user.is_staff:
+        return redirect("admin_dashboard")
+    return redirect("available_shifts")
 
 # ---------- Location & postcode helpers ----------
 def _parse_coords_from_json(request):
