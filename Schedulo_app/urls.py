@@ -40,6 +40,9 @@ urlpatterns = [
     path("admin/manage-shifts/", shift_views.admin_manage_shifts, name="admin_manage_shifts"),
     path("list_shifts/", shift_views.list_shifts, name="list_shifts"),
     path("create-shift/", shift_views.create_shift, name="create_shift"),
+    path("admin/users/", shift_views.admin_user_list, name="admin_user_list"),
+    path("admin/users/create/", shift_views.admin_user_create, name="admin_user_create"),
+    path("admin/users/<int:user_id>/send-reset/", shift_views.admin_user_send_reset, name="admin_user_send_reset"),
 
     # Reports & compliance
     path("reports/attendance/", shift_views.attendance_report, name="attendance_report"),
