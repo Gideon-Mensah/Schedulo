@@ -890,7 +890,7 @@ def admin_manage_shifts(request):
 
     # recent bookings (org-scoped)
     recent_bookings = (
-        ShiftBooking._base_manager
+        ShiftBooking.objects
         .select_related("user", "shift")
         .filter(paid_at__isnull=True, organization=tenant)
         .order_by("-id")[:50]
@@ -1098,7 +1098,8 @@ def admin_book_for_user(request):
         )
         return redirect("admin_manage_shifts")
 
-    booking = ShiftBooking.objects.create(user=user, shift=shift)
+    # In admin_book_for_user, ensure organization is set
+    booking = ShiftBooking.objects.create(user=user, shift=shift, organization=shift.organization)
     note = f" (override: {reason})" if override and reason else (" (override)" if override else "")
     messages.success(request, f"Booked {user.get_username()} on '{shift.title}'.{note}")
     
@@ -1143,7 +1144,7 @@ def admin_clock_in_for_user(request, booking_id):
     override = request.POST.get("override") == "1"
     reason = (request.POST.get("reason") or "").strip()
 
-    booking = get_object_or_404(ShiftBooking, pk=booking_id)
+    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=request.tenant)
 
     if booking.clock_in_at:
         messages.info(request, "Already clocked in.")
@@ -1179,7 +1180,7 @@ def admin_clock_out_for_user(request, booking_id):
     override = request.POST.get("override") == "1"
     reason = (request.POST.get("reason") or "").strip()
 
-    booking = get_object_or_404(ShiftBooking, pk=booking_id)
+    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=request.tenant)
 
     if booking.clock_out_at:
         messages.info(request, "Already clocked out.")
