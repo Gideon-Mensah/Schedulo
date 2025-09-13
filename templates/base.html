@@ -176,18 +176,20 @@
           </ul>
 
           <div class="d-flex align-items-center gap-2">
+            <!-- Theme toggle (keep whatever you had) -->
             <button id="themeToggle" class="btn btn-sm btn-outline-secondary" type="button" title="Toggle theme">
               <span class="d-inline dark-icon" aria-hidden="true">🌙</span>
               <span class="d-none light-icon" aria-hidden="true">☀️</span>
             </button>
 
             {% if request.user.is_authenticated %}
-              <li class="nav-item dropdown ms-2">
+              <!-- User dropdown -->
+              <li class="nav-item dropdown ms-2 list-unstyled">
                 <button
                   class="btn btn-outline-secondary btn-sm dropdown-toggle"
                   data-bs-toggle="dropdown"
                   data-bs-auto-close="outside"
-                  data-bs-display="static"        <!-- 👈 keep it in-flow on mobile -->
+                  data-bs-display="static"      <!-- keep it in-flow on mobile -->
                   aria-expanded="false">
                   {{ request.user.first_name|default:request.user.username }}
                 </button>
@@ -205,14 +207,13 @@
                 </ul>
               </li>
             {% else %}
-              <a href="{% url 'login' %}" class="btn btn-sm btn-primary">Login</a>
-            {%
-    {% if user.is_authenticated %}
-      <form id="logout-form" method="post" action="{% url 'logout' %}" style="display:none;">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{% url 'login' %}" />
-      </form>
-    {% endif %}
+              <a class="btn btn-primary btn-sm" href="{% url 'login' %}">Login</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </nav>
+    {% endwith %}
 
     <!-- Flash messages -->
     <div class="container mt-3">
