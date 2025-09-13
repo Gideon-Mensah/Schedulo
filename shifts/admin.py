@@ -18,12 +18,13 @@ class ShiftAdmin(admin.ModelAdmin):
     ordering = ("-date", "start_time")
 
     def get_queryset(self, request):
+        # call parent queryset, then swap to unfiltered manager
         return Shift.all_objects.get_queryset()
-
 
     def booked_count_admin(self, obj):
         return obj.shiftbooking_set.count()
     booked_count_admin.short_description = "Booked"
+
 
 
 @admin.register(ShiftBooking)
