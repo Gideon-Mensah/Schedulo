@@ -185,16 +185,18 @@
             {% if request.user.is_authenticated %}
               <!-- User dropdown -->
               <li class="nav-item dropdown ms-2 list-unstyled">
-                <button
-                  class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                <a
+                  class="nav-link dropdown-toggle d-inline-flex align-items-center"
+                  href="#"
+                  id="userDropdown"
+                  role="button"
                   data-bs-toggle="dropdown"
-                  data-bs-auto-close="outside"
-                  data-bs-display="static"      <!-- keep it in-flow on mobile -->
-                  aria-expanded="false">
+                  aria-expanded="false"
+                >
                   {{ request.user.first_name|default:request.user.username }}
-                </button>
+                </a>
 
-                <ul class="dropdown-menu dropdown-menu-end mt-2 shadow">
+                <ul class="dropdown-menu dropdown-menu-end mt-2 shadow" aria-labelledby="userDropdown">
                   <li><a class="dropdown-item" href="{% url 'account_profile' %}">My Profile</a></li>
                   <li><a class="dropdown-item" href="{% url 'account_password_change' %}">Change Password</a></li>
                   <li><hr class="dropdown-divider"></li>
