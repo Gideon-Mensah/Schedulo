@@ -11,8 +11,8 @@ from shifts.views_audit import audit_log
 from accounts import views as accounts_views
 
 urlpatterns = [
-    # Bring in shifts/urls.py (ops/... action routes live here)
-    path("", include("shifts.urls")),   # MUST be before admin.site.urls
+    # Include shifts app (namespaced) — must be BEFORE admin.site.urls
+    path("", include(("shifts.urls", "shifts"), namespace="shifts")),
 
     # Home & auth
     path("", shift_views.home, name="home"),
@@ -50,7 +50,7 @@ urlpatterns = [
     path("accounts/compliance/", shift_views.my_compliance, name="my_compliance"),
     path("admin/audit/", audit_log, name="audit_log"),
 
-    # Django admin site — keep LAST so it doesn't swallow /admin/... above
+    # Django admin — keep LAST
     path("admin/", admin.site.urls),
 ]
 
