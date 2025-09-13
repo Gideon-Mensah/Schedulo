@@ -244,6 +244,23 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "1") == "1"
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Schedulo <no-reply@yourdomain.com>")
 
+# settings.py
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    ".onrender.com",            # wildcard for any *.onrender.com app
+    "schedulo-dmib.onrender.com"  # your exact hostname (belt & braces)
+]
+
+# Django 4+ + HTTPS behind a proxy (Render):
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.onrender.com",
+    "https://schedulo-dmib.onrender.com",
+]
+
+# Ensure Django knows the original scheme when behind Render’s proxy
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 
 LOGGING = {
     'version': 1,
