@@ -1,0 +1,6 @@
+New booking created.
+
+User:  {{ user.get_username }} ({{ user.email|default:"no email" }})
+Shift: {{ shift.title }}
+Date:  {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}
+Org:   {{ org.name|default:site_name }}

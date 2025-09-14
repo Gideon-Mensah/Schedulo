@@ -1,0 +1,9 @@
+<p>Hi {{ user.get_username }},</p>
+<p>Your booking is confirmed.</p>
+<ul>
+  <li><strong>Shift:</strong> {{ shift.title }}</li>
+  <li><strong>Date:</strong> {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}</li>
+  <li><strong>Location:</strong> {{ shift.location|default:"TBC" }}</li>
+</ul>
+<p>Organization: {{ org.name|default:site_name }}</p>
+<p>Thanks,<br>{{ org.name|default:site_name }}</p>

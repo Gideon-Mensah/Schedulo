@@ -1,0 +1,7 @@
+<p><strong>New booking created.</strong></p>
+<ul>
+  <li><strong>User:</strong> {{ user.get_username }} ({{ user.email|default:"no email" }})</li>
+  <li><strong>Shift:</strong> {{ shift.title }}</li>
+  <li><strong>Date:</strong> {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}</li>
+  <li><strong>Org:</strong> {{ org.name|default:site_name }}</li>
+</ul>
