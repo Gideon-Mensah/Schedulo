@@ -1,0 +1,12 @@
+Hi {{ user.get_username }},
+
+Your booking is confirmed.
+
+Shift: {{ shift.title }}
+Date:  {{ shift.date }}{% if shift.start_time %}, {{ shift.start_time }}–{{ shift.end_time }}{% endif %}
+Location: {{ shift.location|default:"TBC" }}
+
+Organization: {{ org_name }}
+
+Thanks,
+{{ org_name }} Team

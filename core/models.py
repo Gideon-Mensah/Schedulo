@@ -5,6 +5,10 @@ from core.tenant import get_current_org
 class Organization(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
+    # Branding fields for email notifications
+    email_from = models.EmailField(blank=True, null=True)
+    email_sender_name = models.CharField(max_length=200, blank=True, null=True)
+    email_reply_to = models.EmailField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -37,4 +41,3 @@ class TenantOwned(models.Model):
                 raise ImproperlyConfigured("No current organization set when saving a tenant object.")
             self.organization = org
         return super().save(*args, **kwargs)
-    
