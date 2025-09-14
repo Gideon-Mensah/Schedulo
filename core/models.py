@@ -8,6 +8,12 @@ class Organization(models.Model):
     # Branding fields for email notifications
     email_sender = models.EmailField(blank=True, null=True)   # custom FROM
     email_display_name = models.CharField(max_length=255, blank=True, null=True)
+    # ✅ add these so admin list_display/list_filter work
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
 
     def branded_from_email(self):
         """
