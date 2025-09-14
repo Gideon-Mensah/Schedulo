@@ -21,10 +21,17 @@ def _render_both(org_slug: str | None, ctx: dict, base: str):
     return text_body, html_body
 
 def _from_address_for_org(org):
-    org_name = getattr(org, "email_sender_name", None) or getattr(org, "name", None) or "Schedulo"
-    org_from = getattr(org, "email_from", None) or getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@example.com")
-    reply_to = [getattr(org, "email_reply_to", "")] if getattr(org, "email_reply_to", None) else []
-    from_email = f"{org_name} <{org_from}>"
+    # Use branded_from_email if available
+    if hasattr(org, "branded_from_email") and callable(org.branded_from_email):
+        from_email = org.branded_from_email()
+    else:
+        org_name = getattr(org, "email_display_name", None) or getattr(org, "name", None) or "Schedulo"
+        org_from = getattr(org, "email_sender", None) or getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@example.com")
+        from_email = f"{org_name} <{org_from}>"
+    # Optionally add reply_to logic if you want
+    reply_to = []
+    if hasattr(org, "email_reply_to") and getattr(org, "email_reply_to", None):
+        reply_to = [org.email_reply_to]
     return from_email, reply_to
 
 def send_booking_email(booking):

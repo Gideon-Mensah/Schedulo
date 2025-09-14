@@ -3,14 +3,21 @@ from core.tenant import get_current_org
 
 
 class Organization(models.Model):
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
     # Branding fields for email notifications
-    email_from = models.EmailField(blank=True, null=True)
-    email_sender_name = models.CharField(max_length=200, blank=True, null=True)
-    email_reply_to = models.EmailField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    email_sender = models.EmailField(blank=True, null=True)   # custom FROM
+    email_display_name = models.CharField(max_length=255, blank=True, null=True)
+
+    def branded_from_email(self):
+        """
+        Return branded from email, fallback to global default.
+        """
+        if self.email_sender:
+            display = self.email_display_name or self.name
+            return f"{display} <{self.email_sender}>"
+        from django.conf import settings
+        return settings.DEFAULT_FROM_EMAIL
 
 class Domain(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="domains")
