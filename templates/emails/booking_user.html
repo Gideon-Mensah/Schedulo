@@ -1,9 +1,36 @@
-<p>Hi {{ user.get_username }},</p>
-<p>Your booking is confirmed.</p>
-<ul>
-  <li><strong>Shift:</strong> {{ shift.title }}</li>
-  <li><strong>Date:</strong> {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}</li>
-  <li><strong>Location:</strong> {{ shift.location|default:"TBC" }}</li>
-</ul>
-<p>Organization: {{ org.name|default:site_name }}</p>
-<p>Thanks,<br>{{ org.name|default:site_name }}</p>
+<!doctype html>
+<html>
+  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; padding:24px; background:#f7f7fb;">
+    <table role="presentation" style="max-width:640px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden;">
+      <tr>
+        <td style="padding:24px 24px 8px;">
+          <h2 style="margin:0 0 8px; font-size:20px;">Booking confirmed ✅</h2>
+          <p style="margin:0; color:#666;">Hi <strong>{{ user.get_username }}</strong>, your shift has been booked.</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 24px 24px;">
+          <div style="border:1px solid #eee; border-radius:10px; padding:16px;">
+            <p style="margin:0 0 6px;"><strong>Shift</strong>: {{ shift.title }}</p>
+            <p style="margin:0 0 6px;">
+              <strong>Date</strong>: {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}
+            </p>
+            <p style="margin:0 0 6px;"><strong>Location</strong>: {{ shift.location|default:"TBC" }}</p>
+            <p style="margin:0;">
+              <strong>Organization</strong>:
+              {% if org %}{{ org.name }}
+              {% elif site_name %}{{ site_name }}
+              {% else %}Schedulo{% endif %}
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px 24px; color:#666;">
+          <p style="margin:0;">Thanks,<br>
+          {% if org %}<strong>{{ org.name }}</strong>{% elif site_name %}<strong>{{ site_name }}</strong>{% else %}<strong>Schedulo</strong>{% endif %}</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

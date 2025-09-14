@@ -1,6 +1,12 @@
-New booking created.
+New booking placed.
 
-User:  {{ user.get_username }} ({{ user.email|default:"no email" }})
+User: {{ user.get_username }} ({{ user.email|default:"no email" }})
 Shift: {{ shift.title }}
-Date:  {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}
-Org:   {{ org.name|default:site_name }}
+Date: {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}
+Location: {{ shift.location|default:"TBC" }}
+Booking ID: {{ booking.id }}
+
+{% if org %}Organization: {{ org.name }}
+{% elif site_name %}Organization: {{ site_name }}
+{% else %}Organization: Schedulo
+{% endif %}

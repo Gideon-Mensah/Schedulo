@@ -1,7 +1,30 @@
-<p><strong>New booking created.</strong></p>
-<ul>
-  <li><strong>User:</strong> {{ user.get_username }} ({{ user.email|default:"no email" }})</li>
-  <li><strong>Shift:</strong> {{ shift.title }}</li>
-  <li><strong>Date:</strong> {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}</li>
-  <li><strong>Org:</strong> {{ org.name|default:site_name }}</li>
-</ul>
+<!doctype html>
+<html>
+  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; padding:24px; background:#f7f7fb;">
+    <table role="presentation" style="max-width:640px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden;">
+      <tr>
+        <td style="padding:24px 24px 8px;">
+          <h2 style="margin:0 0 8px; font-size:20px;">New booking received</h2>
+          <p style="margin:0; color:#666;">
+            {% if org %}<strong>{{ org.name }}</strong>
+            {% elif site_name %}<strong>{{ site_name }}</strong>
+            {% else %}<strong>Schedulo</strong>{% endif %} notification
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 24px 24px;">
+          <div style="border:1px solid #eee; border-radius:10px; padding:16px;">
+            <p style="margin:0 0 6px;"><strong>User</strong>: {{ user.get_username }} ({{ user.email|default:"no email" }})</p>
+            <p style="margin:0 0 6px;"><strong>Shift</strong>: {{ shift.title }}</p>
+            <p style="margin:0 0 6px;">
+              <strong>Date</strong>: {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}
+            </p>
+            <p style="margin:0 0 6px;"><strong>Location</strong>: {{ shift.location|default:"TBC" }}</p>
+            <p style="margin:0;"><strong>Booking ID</strong>: {{ booking.id }}</p>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

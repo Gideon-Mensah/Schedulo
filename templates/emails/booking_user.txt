@@ -3,10 +3,13 @@ Hi {{ user.get_username }},
 Your booking is confirmed.
 
 Shift: {{ shift.title }}
-Date:  {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}
+Date: {{ shift.date }}{% if shift.start_time %} {{ shift.start_time }}–{{ shift.end_time }}{% endif %}
 Location: {{ shift.location|default:"TBC" }}
 
-Organization: {{ org.name|default:site_name }}
+{% if org %}Organization: {{ org.name }}
+{% elif site_name %}Organization: {{ site_name }}
+{% else %}Organization: Schedulo
+{% endif %}
 
 Thanks,
-{{ org.name|default:site_name }}
+{% if org %}{{ org.name }}{% elif site_name %}{{ site_name }}{% else %}Schedulo{% endif %}
