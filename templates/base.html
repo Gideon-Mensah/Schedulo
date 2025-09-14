@@ -109,6 +109,15 @@
       .soft-accent { background: var(--soft-accent); }
       .soft-accent-2 { background: var(--soft-accent-2); }
       .app-navbar { background: var(--card-bg) !important; border-bottom: 1px solid var(--card-border); }
+
+      /* Make the Angel button look wider */
+      .user-btn {
+      min-width: 120px;   /* adjust width as you like */
+      justify-content: center;
+      text-align: center;
+      padding-left: 1rem;
+      padding-right: 1rem;
+      }
     </style>
 
     <!-- keep the dropdown anchored under the toggle on mobile -->
@@ -210,7 +219,7 @@
               <!-- User dropdown -->
               <li class="nav-item dropdown ms-2">
                 <button
-                  class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                  class="btn btn-outline-secondary btn-sm dropdown-toggle user-btn"
                   id="userMenu"
                   data-bs-toggle="dropdown"
                   data-bs-auto-close="outside"
