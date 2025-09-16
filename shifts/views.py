@@ -1147,74 +1147,86 @@ def admin_cancel_booking_admin(request, booking_id):
 @user_passes_test(is_admin)
 @require_POST
 def admin_clock_in_for_user(request, booking_id):
-    """
-    Admin clock-in (optionally override). We won’t enforce geofence/time windows here;
-    that’s what your user-facing flow does. Store reason if you like.
-    """
     override = request.POST.get("override") == "1"
     reason = (request.POST.get("reason") or "").strip()
 
     org = _active_tenant(request)
-    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=org)
+
+    qs = ShiftBooking._base_manager.select_related("shift", "user")
+    if org:
+        qs = qs.filter(organization=org)   # only scope when known
+
+    booking = get_object_or_404(qs, pk=booking_id)
+
+    # (Optional guard: block cross-org unless superuser)
+    if org and booking.organization_id != getattr(org, "id", None) and not request.user.is_superuser:
+        messages.error(request, "That booking is not in the active workspace.")
+        return redirect("admin_manage_shifts")
 
     if booking.clock_in_at:
         messages.info(request, "Already clocked in.")
         return redirect("admin_manage_shifts")
 
-    # If you want to block without override:
-    # if not override and not booking.can_clock_in(now=timezone.localtime()):
-    #     messages.error(request, "Clock-in not allowed right now without override.")
-    #     return redirect("admin_manage_shifts")
-
     booking.clock_in_at = timezone.now()
     booking.clock_out_note = (booking.clock_out_note or "")
     if reason:
         booking.clock_out_note += (("\n" if booking.clock_out_note else "") + f"[Admin IN] {reason}")
-    booking.save()
-    
-    # For Audit log
-    log_audit(actor=request.user, subject=request.user, action=AuditAction.CLOCK_OUT,
-          shift=booking.shift, booking=booking,
-          message="Admin assigned Clock in recorded.")
+    booking.save(update_fields=["clock_in_at", "clock_out_note"])
+
+    # ✅ Log the correct action
+    log_audit(
+        actor=request.user,
+        subject=booking.user,
+        action=AuditAction.CLOCK_IN,
+        shift=booking.shift,
+        booking=booking,
+        message="Admin clock-in recorded.",
+    )
 
     messages.success(request, "Clock-in recorded.")
-    return redirect("admin_manage_shifts")
+    return redirect(request.META.get("HTTP_REFERER") or "admin_manage_shifts")
 
 
 @login_required
 @user_passes_test(is_admin)
 @require_POST
 def admin_clock_out_for_user(request, booking_id):
-    """
-    Admin clock-out (optionally override). Stores reason note.
-    """
     override = request.POST.get("override") == "1"
     reason = (request.POST.get("reason") or "").strip()
 
     org = _active_tenant(request)
-    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=org)
+
+    qs = ShiftBooking._base_manager.select_related("shift", "user")
+    if org:
+        qs = qs.filter(organization=org)
+
+    booking = get_object_or_404(qs, pk=booking_id)
+
+    if org and booking.organization_id != getattr(org, "id", None) and not request.user.is_superuser:
+        messages.error(request, "That booking is not in the active workspace.")
+        return redirect("admin_manage_shifts")
 
     if booking.clock_out_at:
         messages.info(request, "Already clocked out.")
         return redirect("admin_manage_shifts")
 
-    # If you want to block without override:
-    # if not override and not booking.can_clock_out(now=timezone.localtime()):
-    #     messages.error(request, "Clock-out not allowed right now without override.")
-    #     return redirect("admin_manage_shifts")
-
     booking.clock_out_at = timezone.now()
     booking.clock_out_note = (booking.clock_out_note or "")
     if reason:
         booking.clock_out_note += (("\n" if booking.clock_out_note else "") + f"[Admin OUT] {reason}")
-    booking.save()
-    
-    log_audit(actor=request.user, subject=request.user, action=AuditAction.CLOCK_OUT,
-          shift=booking.shift, booking=booking,
-          message="Admin assigned Clock out recorded.")
+    booking.save(update_fields=["clock_out_at", "clock_out_note"])
+
+    log_audit(
+        actor=request.user,
+        subject=booking.user,
+        action=AuditAction.CLOCK_OUT,
+        shift=booking.shift,
+        booking=booking,
+        message="Admin clock-out recorded.",
+    )
 
     messages.success(request, "Clock-out recorded.")
-    return redirect("admin_manage_shifts")
+    return redirect(request.META.get("HTTP_REFERER") or "admin_manage_shifts")
 
 @login_required
 @user_passes_test(is_admin)
