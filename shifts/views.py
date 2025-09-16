@@ -899,9 +899,9 @@ def admin_manage_shifts(request):
 
     # recent bookings (org-scoped)
     recent_bookings = (
-        ShiftBooking.objects
+        ShiftBooking._base_manager
         .select_related("user", "shift")
-        .filter(paid_at__isnull=True, organization=tenant)
+        .filter(organization=tenant)
         .order_by("-id")[:50]
     )
 
