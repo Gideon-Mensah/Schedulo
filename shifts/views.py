@@ -253,12 +253,18 @@ def my_bookings(request):
 @login_required
 def completed_shifts(request):
     """User tab: completed but not yet paid."""
+    # Use the same tenant resolution as my_bookings
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
     bookings = (
-        ShiftBooking.objects
+        ShiftBooking._base_manager
         .select_related("shift")
         .filter(
             user=request.user,
-            organization=request.tenant,
+            organization=tenant,
             clock_in_at__isnull=False,
             clock_out_at__isnull=False,
             paid_at__isnull=True,     # NOT paid yet
@@ -270,12 +276,17 @@ def completed_shifts(request):
 @login_required
 def past_shifts(request):
     """User tab: completed and paid (historical)."""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
     bookings = (
-        ShiftBooking.objects
+        ShiftBooking._base_manager
         .select_related("shift")
         .filter(
             user=request.user,
-            organization=request.tenant,
+            organization=tenant,
             clock_in_at__isnull=False,
             clock_out_at__isnull=False,
             paid_at__isnull=False,    # already paid
