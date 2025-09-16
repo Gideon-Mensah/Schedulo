@@ -6,7 +6,7 @@ import csv
 import json
 import secrets
 import string
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, time
 from io import BytesIO
 
 import requests
@@ -225,8 +225,10 @@ def my_bookings(request):
 
     now = timezone.localtime()
     for b in bookings:
-        sd = b.shift.start_dt()
-        ed = b.shift.end_dt()
+        sh = b.shift
+        # combine date + time safely (fall back if missing)
+        sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
+        ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
         grace_deadline = sd + timedelta(minutes=30)
 
         # Default
@@ -399,8 +401,9 @@ def clock_in(request, booking_id):
 
     # If your existing guard rejects, allow within 30-minute grace after start
     if not booking.can_clock_in(now=now):
-        sd = booking.shift.start_dt()
-        ed = booking.shift.end_dt()
+        sh = booking.shift
+        sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
+        ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
         from datetime import timedelta
         if not (sd <= now <= min(sd + timedelta(minutes=30), ed)):
             return _clock_json(False, "Clock-in not allowed at this time.", status=400)
@@ -448,15 +451,16 @@ def clock_out(request, booking_id):
 
     if not booking.can_clock_out(now=now):
         # Still allow if we're inside the shift window
-        sd = booking.shift.start_dt()
-        ed = booking.shift.end_dt()
+        sh = booking.shift
+        sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
+        ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
         if not (sd <= now <= ed):
             return _clock_json(False, "Clock-out not allowed right now.", status=400)
 
-    # If they never clocked in and we’re past the 30-min grace, backfill a sensible "in" time
+        # If they never clocked in and we're past the 30-min grace, backfill a sensible "in" time
     if booking.clock_in_at is None:
         from datetime import timedelta
-        sd = booking.shift.start_dt()
+        sd = datetime.combine(booking.shift.date, booking.shift.start_time or time.min, tzinfo=timezone.get_current_timezone())
         grace_deadline = sd + timedelta(minutes=30)
         # Use the grace deadline, capped at 'now' just in case
         booking.clock_in_at = min(grace_deadline, now)
@@ -560,8 +564,8 @@ def attendance_report(request):
     now = timezone.now()
     for b in qs:
         sh = b.shift
-        sd = sh.start_dt()
-        ed = sh.end_dt()
+        sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
+        ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
 
         ci = b.clock_in_at
         co = b.clock_out_at
@@ -1005,8 +1009,8 @@ def admin_paid_bookings(request):
     rows = []
     for b in qs:
         sh = b.shift
-        sd = sh.start_dt()
-        ed = sh.end_dt()
+        sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
+        ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
         worked_sec = int((b.clock_out_at - b.clock_in_at).total_seconds()) if b.clock_in_at and b.clock_out_at and b.clock_out_at >= b.clock_in_at else 0
         hours = worked_sec // 3600
         minutes = (worked_sec % 3600) // 60
