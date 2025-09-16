@@ -223,10 +223,27 @@ def my_bookings(request):
         .order_by("-id")
     )
 
-    # Attach super-simple flags for the template
+    now = timezone.localtime()
     for b in bookings:
-        b.show_clock_in = (b.clock_in_at is None)
-        b.show_clock_out = (b.clock_in_at is not None) and (b.clock_out_at is None)
+        sd = b.shift.start_dt()
+        ed = b.shift.end_dt()
+        grace_deadline = sd + timedelta(minutes=30)
+
+        # Default
+        b.show_clock_in = False
+        b.show_clock_out = False
+
+        if b.clock_in_at is None:
+            # Allow clock-in up to 30 mins after start, and only while the shift hasn’t ended
+            if sd <= now <= grace_deadline and now < ed:
+                b.show_clock_in = True
+            # After grace: don't show "Clock In"; show "Clock Out" (late start)
+            elif sd < now <= ed and now > grace_deadline:
+                b.show_clock_out = True
+        else:
+            # Normal: already clocked in => allow clock-out while shift is ongoing or later
+            if b.clock_out_at is None:
+                b.show_clock_out = True
 
     return render(request, "my_bookings.html", {"bookings": bookings})
 
@@ -378,9 +395,15 @@ def _save_signature_from_dataurl(data_url: str, filename_prefix: str = "signatur
 @login_required
 def clock_in(request, booking_id):
     booking = get_object_or_404(ShiftBooking, id=booking_id, user=request.user)
+    now = timezone.localtime()
 
-    if not booking.can_clock_in(now=timezone.localtime()):
-        return _clock_json(False, "Clock-in not allowed at this time.", status=400)
+    # If your existing guard rejects, allow within 30-minute grace after start
+    if not booking.can_clock_in(now=now):
+        sd = booking.shift.start_dt()
+        ed = booking.shift.end_dt()
+        from datetime import timedelta
+        if not (sd <= now <= min(sd + timedelta(minutes=30), ed)):
+            return _clock_json(False, "Clock-in not allowed at this time.", status=400)
 
     coords = _parse_coords_from_json(request)
     if not coords:
@@ -421,9 +444,25 @@ def clock_in(request, booking_id):
 @login_required
 def clock_out(request, booking_id):
     booking = get_object_or_404(ShiftBooking, id=booking_id, user=request.user)
+    now = timezone.localtime()
 
-    if not booking.can_clock_out(now=timezone.localtime()):
-        return _clock_json(False, "Clock-out not allowed right now.", status=400)
+    if not booking.can_clock_out(now=now):
+        # Still allow if we're inside the shift window
+        sd = booking.shift.start_dt()
+        ed = booking.shift.end_dt()
+        if not (sd <= now <= ed):
+            return _clock_json(False, "Clock-out not allowed right now.", status=400)
+
+    # If they never clocked in and we’re past the 30-min grace, backfill a sensible "in" time
+    if booking.clock_in_at is None:
+        from datetime import timedelta
+        sd = booking.shift.start_dt()
+        grace_deadline = sd + timedelta(minutes=30)
+        # Use the grace deadline, capped at 'now' just in case
+        booking.clock_in_at = min(grace_deadline, now)
+        # Optional: annotate that this was an auto backfill
+        booking.clock_out_note = (booking.clock_out_note or "")
+        booking.clock_out_note += (("\n" if booking.clock_out_note else "") + "[System] Auto-set clock-in at start+30m due to late clock-in.")
 
     payload = _parse_json(request)
 
