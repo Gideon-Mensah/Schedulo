@@ -1110,10 +1110,16 @@ def admin_unmark_paid(request, booking_id):
 # ---------- USER: My paid shifts ----------
 @login_required
 def my_paid_shifts(request):
+    # resolve tenant the same way as my_bookings
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
     bookings = (
-        ShiftBooking.objects
+        ShiftBooking._base_manager
         .select_related("shift")
-        .filter(user=request.user, paid_at__isnull=False)
+        .filter(user=request.user, organization=tenant, paid_at__isnull=False)
         .order_by("-paid_at", "-id")
     )
     return render(request, "bookings/paid.html", {"bookings": bookings})
