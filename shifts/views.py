@@ -984,6 +984,12 @@ def admin_paid_bookings(request):
     """
     List all PAID bookings with filters + CSV/XLSX export (same shape as attendance).
     """
+    # resolve active org/tenant
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
     today = timezone.localdate()
     default_start = today - timedelta(days=30)
 
@@ -1000,8 +1006,9 @@ def admin_paid_bookings(request):
         start, end = default_start, today
 
     qs = (
-        ShiftBooking.objects
+        ShiftBooking._base_manager                # bypass any tenant manager
         .select_related("user", "shift")
+        .filter(organization=tenant)             # scope to active org
         .filter(paid_at__isnull=False)
         .filter(shift__date__gte=start, shift__date__lte=end)
         .order_by("-paid_at", "-id")
@@ -1088,7 +1095,8 @@ def admin_paid_bookings(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_mark_paid(request, booking_id):
-    b = get_object_or_404(ShiftBooking, id=booking_id)
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    b = get_object_or_404(ShiftBooking._base_manager, pk=booking_id, organization=tenant)
     if not b.paid_at:
         b.paid_at = timezone.now()
         b.save(update_fields=["paid_at"])
@@ -1099,7 +1107,8 @@ def admin_mark_paid(request, booking_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_unmark_paid(request, booking_id):
-    b = get_object_or_404(ShiftBooking, id=booking_id)
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    b = get_object_or_404(ShiftBooking._base_manager, pk=booking_id, organization=tenant)
     if b.paid_at:
         b.paid_at = None
         b.save(update_fields=["paid_at"])
