@@ -1271,16 +1271,25 @@ def admin_clock_out_for_user(request, booking_id):
     messages.success(request, "Clock-out recorded.")
     return redirect(request.META.get("HTTP_REFERER") or "admin_manage_shifts")
 
+@require_POST
 @login_required
 @user_passes_test(is_admin)
 def admin_mark_booking_paid(request, booking_id):
-    booking = get_object_or_404(ShiftBooking, id=booking_id)
-    if request.method == "POST":
-        if not booking.clock_in_at or not booking.clock_out_at:
-            messages.error(request, "Cannot mark as paid until the shift is completed.")
-        else:
-            booking.mark_paid()  # sets paid_at = now
-            messages.success(request, "Booking marked as paid.")
+    org = _active_tenant(request)
+    # Use _base_manager to bypass any implicit tenant filtering,
+    # then explicitly scope to the active org.
+    booking = get_object_or_404(
+        ShiftBooking._base_manager,
+        id=booking_id,
+        organization=org,
+    )
+
+    if not booking.clock_in_at or not booking.clock_out_at:
+        messages.error(request, "Cannot mark as paid until the shift is completed.")
+    else:
+        booking.mark_paid()  # sets paid_at = now
+        messages.success(request, f"Booking #{booking.id} marked as paid.")
+
     return redirect(request.POST.get("next") or "admin_manage_shifts")
 
 # Compliance / audit trail views could go here...
