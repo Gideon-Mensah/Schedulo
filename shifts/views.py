@@ -216,34 +216,54 @@ def my_bookings(request):
         messages.error(request, "No active workspace selected. Please select an organization.")
         return redirect("home")
 
+    now = timezone.localtime()
+    today = now.date()
+    current_time = now.time()
+
+    # upcoming: strictly future OR later today (not finished)
+    future_q = (
+        Q(shift__date__gt=today) |
+        (
+            Q(shift__date=today) & (
+                Q(shift__end_time__gt=current_time) |
+                Q(shift__end_time__isnull=True, shift__start_time__gt=current_time) |
+                Q(shift__start_time__isnull=True, shift__end_time__isnull=True)
+            )
+        )
+    )
+
+    # in-progress or needs action: clocked in but not clocked out
+    needs_clock_out_q = Q(clock_in_at__isnull=False, clock_out_at__isnull=True)
+
     bookings = (
         ShiftBooking._base_manager
         .select_related("shift")
         .filter(user=request.user, organization=tenant)
-        .order_by("-id")
+        # Hide COMPLETED ones
+        .exclude(clock_in_at__isnull=False, clock_out_at__isnull=False)
+        # Show upcoming OR still needs clock-out
+        .filter(future_q | needs_clock_out_q)
+        .order_by("shift__date", "shift__start_time", "id")
     )
 
-    now = timezone.localtime()
+    # keep your existing UI flags
     for b in bookings:
         sh = b.shift
-        # combine date + time safely (fall back if missing)
         sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
         ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
         grace_deadline = sd + timedelta(minutes=30)
 
-        # Default
         b.show_clock_in = False
         b.show_clock_out = False
 
         if b.clock_in_at is None:
-            # Allow clock-in up to 30 mins after start, and only while the shift hasn’t ended
+            # allow clock-in up to 30 min after start while shift not ended
             if sd <= now <= grace_deadline and now < ed:
                 b.show_clock_in = True
-            # After grace: don't show "Clock In"; show "Clock Out" (late start)
             elif sd < now <= ed and now > grace_deadline:
+                # after grace window, let them clock out directly (late start)
                 b.show_clock_out = True
         else:
-            # Normal: already clocked in => allow clock-out while shift is ongoing or later
             if b.clock_out_at is None:
                 b.show_clock_out = True
 
