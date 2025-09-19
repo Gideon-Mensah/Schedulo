@@ -541,9 +541,15 @@ def clock_out(request, booking_id):
 @login_required
 @user_passes_test(lambda u: u.is_staff)
 def attendance_report(request):
+    # ---- org scope ----
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    # ---- date range ----
     today = timezone.localdate()
     default_start = today - timedelta(days=7)
-
     try:
         start_str = request.GET.get("start")
         end_str = request.GET.get("end")
@@ -551,42 +557,39 @@ def attendance_report(request):
         end = date.fromisoformat(end_str) if end_str else today
     except ValueError:
         start, end = default_start, today
-        
-    
+
     include_paid = request.GET.get("include_paid") == "1"
+
+    # ---- base queryset (org + date range) ----
     qs = (
-        ShiftBooking.objects
+        ShiftBooking._base_manager  # bypass any implicit tenant filtering
         .select_related("user", "shift")
+        .filter(organization=tenant)
         .filter(shift__date__gte=start, shift__date__lte=end)
     )
+    # apply paid filter only when requested
     if not include_paid:
         qs = qs.filter(paid_at__isnull=True)
-    
-    
-    qs = (
-        ShiftBooking.objects
-        .select_related("user", "shift")
-        .filter(shift__date__gte=start, shift__date__lte=end)
-        .filter(paid_at__isnull=True)          # <— exclude paid
-        .order_by("shift__date", "shift__start_time", "user__username")
-    )
 
+    qs = qs.order_by("shift__date", "shift__start_time", "user__username")
+
+    # ---- rows ----
     rows = []
-    now = timezone.now()
+    now = timezone.localtime()
+    tz = timezone.get_current_timezone()
     for b in qs:
         sh = b.shift
-        sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
-        ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
+        sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=tz)
+        ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=tz)
 
         ci = b.clock_in_at
         co = b.clock_out_at
-
         ci_local = timezone.localtime(ci) if ci else None
         co_local = timezone.localtime(co) if co else None
 
         worked_sec = int((co - ci).total_seconds()) if ci and co and co >= ci else 0
-        late_min = int(round((ci - sd).total_seconds() / 60.0)) if ci and ci > sd else 0
-        early_min = int(round((ed - co).total_seconds() / 60.0)) if co and co < ed else 0
+        late_min   = int(round((ci - sd).total_seconds() / 60.0)) if ci and ci > sd else 0
+        early_min  = int(round((ed - co).total_seconds() / 60.0)) if co and co < ed else 0
 
         if not ci and now > ed:
             status = "No show"
@@ -601,22 +604,20 @@ def attendance_report(request):
         minutes = (worked_sec % 3600) // 60
         worked_hhmm = f"{hours:02d}:{minutes:02d}"
 
-        rows.append(
-            {
-                "date": sh.date.isoformat(),
-                "user": b.user.get_username(),
-                "role": sh.role,
-                "title": sh.title,
-                "start": sd.strftime("%H:%M"),
-                "end": ed.strftime("%H:%M"),
-                "clock_in": ci_local.strftime("%H:%M") if ci_local else "",
-                "clock_out": co_local.strftime("%H:%M") if co_local else "",
-                "worked": worked_hhmm,
-                "late_min": late_min,
-                "early_min": early_min,
-                "status": status,
-            }
-        )
+        rows.append({
+            "date": sh.date.isoformat(),
+            "user": b.user.get_username(),
+            "role": sh.role,
+            "title": sh.title,
+            "start": sd.strftime("%H:%M"),
+            "end": ed.strftime("%H:%M"),
+            "clock_in": ci_local.strftime("%H:%M") if ci_local else "",
+            "clock_out": co_local.strftime("%H:%M") if co_local else "",
+            "worked": worked_hhmm,
+            "late_min": late_min,
+            "early_min": early_min,
+            "status": status,
+        })
 
     fmt = (request.GET.get("format") or "").lower()
     if fmt == "csv":
@@ -627,7 +628,11 @@ def attendance_report(request):
         except ImportError:
             messages.error(request, "Excel export requires 'openpyxl'. Try CSV export instead.")
 
-    return render(request, "reports/attendance.html", {"rows": rows, "start": start, "end": end})
+    return render(request, "reports/attendance.html", {
+        "rows": rows,
+        "start": start,
+        "end": end,
+    })
 
 def _attendance_csv(rows, start, end):
     response = HttpResponse(content_type="text/csv")
