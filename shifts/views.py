@@ -360,7 +360,14 @@ def past_shifts(request):
 
 @login_required
 def cancel_booking(request, booking_id):
-    booking = get_object_or_404(ShiftBooking, id=booking_id, user=request.user)
+    # Use _base_manager to bypass tenant filtering, then manually check tenant
+    booking = get_object_or_404(ShiftBooking._base_manager, id=booking_id, user=request.user)
+    
+    # Verify the booking belongs to the user's organization
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant and booking.organization_id != getattr(tenant, "id", None):
+        messages.error(request, "Booking not found or access denied.")
+        return redirect("my_bookings")
 
     if request.method != "POST":
         messages.error(request, "Invalid request.")
@@ -568,9 +575,12 @@ def _save_signature_from_dataurl(data_url: str, filename_prefix: str = "signatur
 @login_required
 def clock_in(request, booking_id):
     try:
-        try:
-            booking = get_object_or_404(ShiftBooking.objects, id=booking_id, user=request.user)
-        except ShiftBooking.DoesNotExist:
+        # Use _base_manager to bypass tenant filtering, then manually check tenant
+        booking = get_object_or_404(ShiftBooking._base_manager, id=booking_id, user=request.user)
+        
+        # Verify the booking belongs to the user's organization
+        tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+        if tenant and booking.organization_id != getattr(tenant, "id", None):
             return _clock_json(False, "Booking not found or access denied.", status=404)
         
         now = timezone.localtime()
@@ -630,9 +640,12 @@ def clock_in(request, booking_id):
 @login_required
 def clock_out(request, booking_id):
     try:
-        try:
-            booking = get_object_or_404(ShiftBooking.objects, id=booking_id, user=request.user)
-        except ShiftBooking.DoesNotExist:
+        # Use _base_manager to bypass tenant filtering, then manually check tenant
+        booking = get_object_or_404(ShiftBooking._base_manager, id=booking_id, user=request.user)
+        
+        # Verify the booking belongs to the user's organization
+        tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+        if tenant and booking.organization_id != getattr(tenant, "id", None):
             return _clock_json(False, "Booking not found or access denied.", status=404)
         
         now = timezone.localtime()
@@ -1392,7 +1405,7 @@ def admin_cancel_booking_admin(request, booking_id):
     POST to cancel a booking by id.
     """
     org = _active_tenant(request)
-    booking = get_object_or_404(ShiftBooking.objects, pk=booking_id, organization=org)
+    booking = get_object_or_404(ShiftBooking._base_manager, pk=booking_id, organization=org)
     title = booking.shift.title
     username = booking.user.get_username()
     booking.delete()
