@@ -11,18 +11,31 @@
                     <h4 class="mb-0">
                         <i class="fa fa-calendar-check-o me-2"></i>Holiday Requests Management
                     </h4>
-                    <div class="btn-group" role="group">
-                        <input type="radio" class="btn-check" name="status-filter" id="all" value="all" checked>
-                        <label class="btn btn-outline-dark btn-sm" for="all">All</label>
-                        
-                        <input type="radio" class="btn-check" name="status-filter" id="pending" value="pending">
-                        <label class="btn btn-outline-dark btn-sm" for="pending">Pending</label>
-                        
-                        <input type="radio" class="btn-check" name="status-filter" id="approved" value="approved">
-                        <label class="btn btn-outline-dark btn-sm" for="approved">Approved</label>
-                        
-                        <input type="radio" class="btn-check" name="status-filter" id="rejected" value="rejected">
-                        <label class="btn btn-outline-dark btn-sm" for="rejected">Rejected</label>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'shifts:admin_holiday_dashboard' %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fa fa-chart-line me-1"></i>Dashboard
+                            </a>
+                            <a href="{% url 'shifts:admin_add_holiday_request' %}" class="btn btn-outline-success btn-sm">
+                                <i class="fa fa-plus me-1"></i>Add Request
+                            </a>
+                            <a href="{% url 'shifts:admin_user_availabilities' %}" class="btn btn-outline-info btn-sm">
+                                <i class="fa fa-calendar-check me-1"></i>Availabilities
+                            </a>
+                        </div>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="status-filter" id="all" value="all" checked>
+                            <label class="btn btn-outline-dark btn-sm" for="all">All</label>
+                            
+                            <input type="radio" class="btn-check" name="status-filter" id="pending" value="pending">
+                            <label class="btn btn-outline-dark btn-sm" for="pending">Pending</label>
+                            
+                            <input type="radio" class="btn-check" name="status-filter" id="approved" value="approved">
+                            <label class="btn btn-outline-dark btn-sm" for="approved">Approved</label>
+                            
+                            <input type="radio" class="btn-check" name="status-filter" id="rejected" value="rejected">
+                            <label class="btn btn-outline-dark btn-sm" for="rejected">Rejected</label>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">

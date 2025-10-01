@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Add Holiday Request - Admin{% endblock %}
+
+{% block head %}
+<style>
+    .form-container {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        border: 1px solid #e3e8ff;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .btn-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-gradient:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-1px);
+        color: white;
+    }
+    
+    .holiday-preview {
+        background: #e8f5e8;
+        border-left: 4px solid #28a745;
+        padding: 1rem;
+        border-radius: 0 8px 8px 0;
+        margin-top: 1rem;
+    }
+    
+    .admin-options {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: white;
+        border-radius: 6px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .checkbox-wrapper:hover {
+        border-color: #667eea;
+        background: #f8f9ff;
+    }
+    
+    .checkbox-wrapper input[type="checkbox"] {
+        margin-right: 0.75rem;
+        transform: scale(1.2);
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .duration-display {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 6px;
+        padding: 0.75rem;
+        text-align: center;
+        font-weight: 600;
+        color: #004085;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2 class="mb-0">
+                        <i class="fas fa-calendar-plus me-2"></i>
+                        Add Holiday Request
+                    </h2>
+                    <p class="mb-0 mt-2 opacity-75">Create a holiday request for any user in your organization</p>
+                </div>
+                
+                <div class="admin-options">
+                    <h6 class="mb-3">
+                        <i class="fas fa-crown me-2 text-warning"></i>
+                        Admin Options
+                    </h6>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="auto_approve" name="auto_approve" value="1">
+                        <div>
+                            <strong>Auto-approve this request</strong>
+                            <div class="text-muted small">The request will be automatically approved when created</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="post" id="holidayForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="auto_approve_hidden" name="auto_approve" value="0">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="user_id" class="form-label">
+                                    <i class="fas fa-user me-2"></i>Select User
+                                </label>
+                                <select name="user_id" id="user_id" class="form-select" required>
+                                    <option value="">Choose a user...</option>
+                                    {% for user in users %}
+                                        <option value="{{ user.id }}">
+                                            {{ user.get_full_name|default:user.username }}
+                                            {% if user.email %} ({{ user.email }}){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.holiday_type.id_for_label }}" class="form-label">
+                                    <i class="fas fa-tag me-2"></i>Holiday Type
+                                </label>
+                                {{ form.holiday_type }}
+                                {% if form.holiday_type.errors %}
+                                    <div class="text-danger small mt-1">{{ form.holiday_type.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.start_date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar me-2"></i>Start Date
+                                </label>
+                                {{ form.start_date }}
+                                {% if form.start_date.errors %}
+                                    <div class="text-danger small mt-1">{{ form.start_date.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.end_date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar me-2"></i>End Date
+                                </label>
+                                {{ form.end_date }}
+                                {% if form.end_date.errors %}
+                                    <div class="text-danger small mt-1">{{ form.end_date.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <label for="{{ form.reason.id_for_label }}" class="form-label">
+                                    <i class="fas fa-comment me-2"></i>Reason
+                                </label>
+                                {{ form.reason }}
+                                {% if form.reason.errors %}
+                                    <div class="text-danger small mt-1">{{ form.reason.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-calculator me-2"></i>Duration
+                                </label>
+                                <div id="duration-display" class="duration-display">
+                                    Select dates
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Section -->
+                    <div id="holiday-preview" class="holiday-preview" style="display: none;">
+                        <h6><i class="fas fa-eye me-2"></i>Preview</h6>
+                        <div id="preview-content"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'shifts:admin_holiday_requests' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Requests
+                        </a>
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save me-2"></i>Create Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('holidayForm');
+    const preview = document.getElementById('holiday-preview');
+    const previewContent = document.getElementById('preview-content');
+    const durationDisplay = document.getElementById('duration-display');
+    
+    // Form fields
+    const userSelect = document.getElementById('user_id');
+    const holidayType = document.getElementById('{{ form.holiday_type.id_for_label }}');
+    const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
+    const endDateField = document.getElementById('{{ form.end_date.id_for_label }}');
+    const reasonField = document.getElementById('{{ form.reason.id_for_label }}');
+    const autoApproveCheckbox = document.getElementById('auto_approve');
+    const autoApproveHidden = document.getElementById('auto_approve_hidden');
+    
+    // Auto-approve checkbox handling
+    autoApproveCheckbox.addEventListener('change', function() {
+        autoApproveHidden.value = this.checked ? '1' : '0';
+        updatePreview();
+    });
+    
+    function calculateDuration() {
+        const startDate = startDateField.value;
+        const endDate = endDateField.value;
+        
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            
+            if (diffDays > 0) {
+                durationDisplay.textContent = `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+                durationDisplay.style.background = '#e8f5e8';
+                durationDisplay.style.borderColor = '#28a745';
+                durationDisplay.style.color = '#155724';
+                return diffDays;
+            } else {
+                durationDisplay.textContent = 'Invalid date range';
+                durationDisplay.style.background = '#f8d7da';
+                durationDisplay.style.borderColor = '#dc3545';
+                durationDisplay.style.color = '#721c24';
+                return 0;
+            }
+        } else {
+            durationDisplay.textContent = 'Select dates';
+            durationDisplay.style.background = '#e7f3ff';
+            durationDisplay.style.borderColor = '#b3d9ff';
+            durationDisplay.style.color = '#004085';
+            return 0;
+        }
+    }
+    
+    function updatePreview() {
+        const user = userSelect.options[userSelect.selectedIndex]?.text || '';
+        const type = holidayType.options[holidayType.selectedIndex]?.text || '';
+        const startDate = startDateField.value;
+        const endDate = endDateField.value;
+        const reason = reasonField.value;
+        const autoApprove = autoApproveCheckbox.checked;
+        
+        if (user && type && startDate && endDate && reason) {
+            const duration = calculateDuration();
+            
+            if (duration > 0) {
+                let html = `<strong>${user}</strong> will request <strong>${type}</strong> from <strong>${new Date(startDate).toLocaleDateString()}</strong> to <strong>${new Date(endDate).toLocaleDateString()}</strong> (${duration} day${duration !== 1 ? 's' : ''}).`;
+                html += `<br><em>Reason: ${reason}</em>`;
+                
+                if (autoApprove) {
+                    html += `<br><span class="badge bg-success mt-2">Will be auto-approved</span>`;
+                } else {
+                    html += `<br><span class="badge bg-warning mt-2">Will require approval</span>`;
+                }
+                
+                previewContent.innerHTML = html;
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+            }
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+    
+    // Add event listeners
+    [userSelect, holidayType, startDateField, endDateField, reasonField].forEach(field => {
+        if (field) {
+            field.addEventListener('change', updatePreview);
+            field.addEventListener('input', updatePreview);
+        }
+    });
+    
+    // Date field listeners for duration calculation
+    [startDateField, endDateField].forEach(field => {
+        if (field) {
+            field.addEventListener('change', calculateDuration);
+            field.addEventListener('input', calculateDuration);
+        }
+    });
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    if (startDateField) {
+        startDateField.min = today;
+    }
+    if (endDateField) {
+        endDateField.min = today;
+    }
+    
+    // Ensure end date is not before start date
+    startDateField?.addEventListener('change', function() {
+        if (endDateField) {
+            endDateField.min = this.value;
+            if (endDateField.value && endDateField.value < this.value) {
+                endDateField.value = this.value;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

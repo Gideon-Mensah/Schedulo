@@ -97,6 +97,25 @@
     color: white;
   }
   
+  .nav-btn.admin {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: 2px solid transparent;
+  }
+  
+  .nav-btn.admin:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+  
+  .admin-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--card-border);
+    margin: 0 8px;
+  }
+  
   .current-month {
     font-weight: 600;
     color: var(--text-primary);
@@ -426,6 +445,15 @@
             <a href="{% url 'shifts:my_holidays' %}" class="nav-btn outline">
                 <i class="fa fa-calendar-check-o"></i>Holidays
             </a>
+            {% if user.is_staff %}
+                <div class="admin-divider"></div>
+                <a href="{% url 'shifts:admin_holiday_dashboard' %}" class="nav-btn admin" title="Admin: Holiday Dashboard">
+                    <i class="fa fa-chart-line"></i>Admin
+                </a>
+                <a href="{% url 'shifts:admin_user_availabilities' %}" class="nav-btn admin" title="Admin: User Availabilities">
+                    <i class="fa fa-users"></i>Users
+                </a>
+            {% endif %}
         </div>
     </div>    
     <div class="calendar-grid">

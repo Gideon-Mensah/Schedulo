@@ -17,12 +17,19 @@ urlpatterns = [
     path("availability/<int:availability_id>/delete/", views.delete_availability, name="delete_availability"),
     
     # Holiday management
-    path("holidays/", views.my_holidays, name="my_holidays"),
-    path("holidays/request/", views.request_holiday, name="request_holiday"),
-    path("holidays/<int:request_id>/cancel/", views.cancel_holiday_request, name="cancel_holiday_request"),
+    path("request-holiday/", views.request_holiday, name="request_holiday"),
+    path("my-holidays/", views.my_holidays, name="my_holidays"),
+    path("cancel-holiday/<int:request_id>/", views.cancel_holiday_request, name="cancel_holiday_request"),
     
     # Admin holiday management
     path("admin/holidays/", views.admin_holiday_requests, name="admin_holiday_requests"),
-    path("admin/holidays/<int:request_id>/approve/", views.approve_holiday_request, name="approve_holiday_request"),
-    path("admin/holidays/<int:request_id>/reject/", views.reject_holiday_request, name="reject_holiday_request"),
+    path("admin/holidays/dashboard/", views.admin_holiday_dashboard, name="admin_holiday_dashboard"),
+    path("admin/holidays/add/", views.admin_add_holiday_request, name="admin_add_holiday_request"),
+    path("admin/holidays/approve/<int:request_id>/", views.approve_holiday_request, name="approve_holiday_request"),
+    path("admin/holidays/reject/<int:request_id>/", views.reject_holiday_request, name="reject_holiday_request"),
+    
+    # Admin user availability management
+    path("admin/availabilities/", views.admin_user_availabilities, name="admin_user_availabilities"),
+    path("admin/availabilities/add/", views.admin_add_user_availability, name="admin_add_user_availability"),
+    path("admin/availabilities/delete/<int:availability_id>/", views.admin_delete_user_availability, name="admin_delete_user_availability"),
 ]

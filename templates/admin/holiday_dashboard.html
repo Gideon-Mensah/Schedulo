@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Holiday Dashboard - Admin{% endblock %}
+
+{% block head %}
+<style>
+    .dashboard-card {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        border: 1px solid #e3e8ff;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+    }
+    
+    .stats-card h3 {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .pending-card {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        border-left: 4px solid #ff8c00;
+    }
+    
+    .approved-card {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        border-left: 4px solid #28a745;
+    }
+    
+    .holiday-item {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-left: 4px solid #007bff;
+        transition: all 0.3s ease;
+    }
+    
+    .holiday-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .holiday-pending {
+        border-left-color: #ffc107;
+        background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+    }
+    
+    .holiday-approved {
+        border-left-color: #28a745;
+        background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+    }
+    
+    .holiday-rejected {
+        border-left-color: #dc3545;
+        background: linear-gradient(135deg, #fdeaea 0%, #f8d7da 100%);
+    }
+    
+    .btn-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-gradient:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-1px);
+        color: white;
+    }
+    
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .quick-action-btn {
+        background: rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.3);
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-block;
+        margin: 0.25rem;
+    }
+    
+    .quick-action-btn:hover {
+        background: rgba(255,255,255,0.3);
+        border-color: rgba(255,255,255,0.5);
+        color: white;
+        transform: translateY(-1px);
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .badge-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .badge-approved {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .badge-rejected {
+        background: #f8d7da;
+        color: #721c24;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <h1 class="mb-3">
+            <i class="fas fa-chart-line me-3"></i>
+            Holiday Management Dashboard
+        </h1>
+        <p class="mb-4 opacity-75">Manage holiday requests, track statistics, and oversee team availability</p>
+        
+        <div class="quick-actions">
+            <a href="{% url 'shifts:admin_holiday_requests' %}" class="quick-action-btn">
+                <i class="fas fa-list me-2"></i>All Requests
+            </a>
+            <a href="{% url 'shifts:admin_add_holiday_request' %}" class="quick-action-btn">
+                <i class="fas fa-plus me-2"></i>Add Request
+            </a>
+            <a href="{% url 'shifts:admin_user_availabilities' %}" class="quick-action-btn">
+                <i class="fas fa-calendar-check me-2"></i>User Availabilities
+            </a>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="dashboard-card pending-card">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h3 class="text-warning mb-0">{{ pending_requests }}</h3>
+                        <p class="mb-0 text-dark">Pending Requests</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-clock fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="dashboard-card approved-card">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h3 class="text-success mb-0">{{ approved_requests }}</h3>
+                        <p class="mb-0 text-dark">Approved Requests</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="dashboard-card stats-card">
+                <h3>{{ upcoming_holidays|length }}</h3>
+                <p class="mb-0">Upcoming Holidays</p>
+                <small class="opacity-75">Next 30 days</small>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="dashboard-card stats-card">
+                <h3>{{ recent_requests|length }}</h3>
+                <p class="mb-0">Recent Requests</p>
+                <small class="opacity-75">Last 30 days</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Requests and Upcoming Holidays -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="dashboard-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-history me-2 text-primary"></i>
+                    Recent Requests
+                    <small class="text-muted">(Last 30 days)</small>
+                </h5>
+                
+                {% if recent_requests %}
+                    <div class="recent-requests">
+                        {% for request in recent_requests %}
+                            <div class="holiday-item holiday-{{ request.status }}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            {{ request.user.get_full_name|default:request.user.username }}
+                                        </h6>
+                                        <p class="mb-1 text-muted small">
+                                            {{ request.get_holiday_type_display }} • 
+                                            {{ request.start_date|date:"M j" }} - {{ request.end_date|date:"M j, Y" }}
+                                            ({{ request.duration_days }} day{{ request.duration_days|pluralize }})
+                                        </p>
+                                        {% if request.reason %}
+                                            <p class="mb-1 small">{{ request.reason|truncatechars:80 }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="status-badge badge-{{ request.status }}">
+                                            {{ request.get_status_display }}
+                                        </span>
+                                        <div class="mt-1">
+                                            <small class="text-muted">{{ request.created_at|date:"M j" }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <a href="{% url 'shifts:admin_holiday_requests' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-list me-2"></i>View All Requests
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox text-muted" style="font-size: 3rem;"></i>
+                        <h6 class="mt-3 text-muted">No recent requests</h6>
+                        <p class="text-muted small">Holiday requests will appear here</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="dashboard-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-calendar-alt me-2 text-success"></i>
+                    Upcoming Holidays
+                    <small class="text-muted">(Next 30 days)</small>
+                </h5>
+                
+                {% if upcoming_holidays %}
+                    <div class="upcoming-holidays">
+                        {% for holiday in upcoming_holidays %}
+                            <div class="holiday-item holiday-approved">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            {{ holiday.user.get_full_name|default:holiday.user.username }}
+                                        </h6>
+                                        <p class="mb-1 text-muted small">
+                                            {{ holiday.get_holiday_type_display }} • 
+                                            {{ holiday.start_date|date:"M j" }} - {{ holiday.end_date|date:"M j, Y" }}
+                                        </p>
+                                        {% if holiday.reason %}
+                                            <p class="mb-0 small">{{ holiday.reason|truncatechars:60 }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-success">
+                                            {{ holiday.duration_days }} day{{ holiday.duration_days|pluralize }}
+                                        </span>
+                                        {% if holiday.start_date == today %}
+                                            <div class="mt-1">
+                                                <small class="text-danger fw-bold">Starts Today</small>
+                                            </div>
+                                        {% elif holiday.start_date <= today and holiday.end_date >= today %}
+                                            <div class="mt-1">
+                                                <small class="text-warning fw-bold">In Progress</small>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-check text-muted" style="font-size: 3rem;"></i>
+                        <h6 class="mt-3 text-muted">No upcoming holidays</h6>
+                        <p class="text-muted small">Approved holidays will appear here</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    {% if pending_requests > 0 %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-warning d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle me-3"></i>
+                <div class="flex-grow-1">
+                    <strong>Action Required:</strong> You have {{ pending_requests }} pending holiday request{{ pending_requests|pluralize }} waiting for review.
+                </div>
+                <a href="{% url 'shifts:admin_holiday_requests' %}?status=pending" class="btn btn-warning ms-3">
+                    <i class="fas fa-eye me-2"></i>Review Now
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -48,6 +48,10 @@ logger = logging.getLogger(__name__)
 def is_admin(user):
     return user.is_authenticated and user.is_staff
 
+def is_admin_or_staff(user):
+    """Check if user is admin or has staff permissions"""
+    return user.is_authenticated and (user.is_staff or user.is_superuser or getattr(user, 'is_manager', False))
+
 User = get_user_model()
 
 def _active_tenant(request):
@@ -1789,169 +1793,231 @@ def admin_holiday_requests(request):
     }
     return render(request, "admin/holiday_requests.html", context)
 
-# ---------- Additional Availability Management Views ----------
+# ---------- Admin User Availability Management ----------
 @login_required
-def edit_availability(request, availability_id):
-    """Edit existing availability entry"""
+@user_passes_test(is_admin)
+def admin_user_availabilities(request):
+    """Admin view to see all user availabilities"""
     tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
     if tenant is None:
         messages.error(request, "No active workspace selected. Please select an organization.")
         return redirect("home")
 
-    availability = get_object_or_404(
-        UserAvailability._base_manager, 
-        id=availability_id, 
-        user=request.user, 
-        organization=tenant
+    # Filters
+    user_filter = request.GET.get('user', '')
+    date_filter = request.GET.get('date', '')
+    availability_type_filter = request.GET.get('availability_type', '')
+    
+    availabilities = (
+        UserAvailability._base_manager
+        .select_related('user')
+        .filter(organization=tenant)
+        .order_by('-date', 'user__username', 'start_time')
     )
+    
+    # Apply filters
+    if user_filter:
+        availabilities = availabilities.filter(
+            Q(user__username__icontains=user_filter) |
+            Q(user__first_name__icontains=user_filter) |
+            Q(user__last_name__icontains=user_filter)
+        )
+    
+    if date_filter:
+        try:
+            filter_date = date.fromisoformat(date_filter)
+            availabilities = availabilities.filter(date=filter_date)
+        except ValueError:
+            pass
+    
+    if availability_type_filter:
+        availabilities = availabilities.filter(availability_type=availability_type_filter)
+    
+    # Get all users for filter dropdown
+    users = User.objects.filter(profile__organization=tenant).order_by('username')
+    
+    context = {
+        'availabilities': availabilities,
+        'users': users,
+        'user_filter': user_filter,
+        'date_filter': date_filter,
+        'availability_type_filter': availability_type_filter,
+        'availability_choices': UserAvailability.AVAILABILITY_CHOICES,
+    }
+    
+    return render(request, "admin/user_availabilities.html", context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_add_user_availability(request):
+    """Admin can add availability for any user"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace detected. Please select an organization.")
+        return redirect("home")
 
     if request.method == 'POST':
-        form = UserAvailabilityForm(request.POST, instance=availability)
-        if form.is_valid():
+        form = UserAvailabilityForm(request.POST)
+        user_id = request.POST.get('user_id')
+        
+        if form.is_valid() and user_id:
             try:
-                form.save()
-                messages.success(request, "Availability updated successfully.")
-                return redirect("shifts:my_availability")
-            except IntegrityError:
-                messages.error(request, "You already have availability set for this date and time.")
+                selected_user = User.objects.get(id=user_id, profile__organization=tenant)
+                availability = form.save(commit=False)
+                availability.user = selected_user
+                availability.organization = tenant
+                availability.save()
+                
+                log_audit(
+                    actor=request.user,
+                    subject=selected_user,
+                    action=AuditAction.BOOKING_CREATED,
+                    message=f"Admin added availability for {selected_user.username}: {availability.get_availability_type_display()} on {availability.date}"
+                )
+                
+                messages.success(request, f"Availability added for {selected_user.username}.")
+                return redirect("shifts:admin_user_availabilities")
+            except User.DoesNotExist:
+                messages.error(request, "Selected user not found.")
         else:
             messages.error(request, "Please fix the errors below.")
     else:
-        form = UserAvailabilityForm(instance=availability)
-
-    return render(request, "shifts/add_availability.html", {"form": form, "edit_mode": True})
+        form = UserAvailabilityForm()
+    
+    # Get all users for dropdown
+    users = User.objects.filter(profile__organization=tenant).order_by('username')
+    
+    return render(request, "admin/add_user_availability.html", {"form": form, "users": users})
 
 
 @login_required
-def delete_availability(request, availability_id):
-    """Delete availability entry"""
+@user_passes_test(is_admin)
+def admin_delete_user_availability(request, availability_id):
+    """Admin can delete any user's availability"""
     tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
     if tenant is None:
         messages.error(request, "No active workspace selected. Please select an organization.")
         return redirect("home")
 
     availability = get_object_or_404(
-        UserAvailability._base_manager, 
+        UserAvailability._base_manager.select_related('user'), 
         id=availability_id, 
-        user=request.user, 
         organization=tenant
     )
 
     if request.method == 'POST':
+        user = availability.user
         availability.delete()
-        messages.success(request, "Availability deleted successfully.")
-        return redirect("shifts:my_availability")
+        
+        log_audit(
+            actor=request.user,
+            subject=user,
+            action=AuditAction.BOOKING_CANCELLED,
+            message=f"Admin deleted availability for {user.username}: {availability.get_availability_type_display()} on {availability.date}"
+        )
+        
+        messages.success(request, f"Availability deleted for {user.username}.")
+        return redirect("shifts:admin_user_availabilities")
 
     messages.error(request, "Invalid request method.")
-    return redirect("shifts:my_availability")
+    return redirect("shifts:admin_user_availabilities")
 
 
-# ---------- Additional Holiday Management Views ----------
+# ---------- Enhanced Admin Holiday Management ----------
 @login_required
-def cancel_holiday_request(request, request_id):
-    """Cancel pending holiday request"""
+@user_passes_test(is_admin)
+def admin_holiday_dashboard(request):
+    """Admin dashboard for holiday management with statistics"""
     tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
     if tenant is None:
         messages.error(request, "No active workspace selected. Please select an organization.")
         return redirect("home")
 
-    holiday_request = get_object_or_404(
-        HolidayRequest._base_manager, 
-        id=request_id, 
-        user=request.user, 
-        organization=tenant,
-        status='pending'
+    # Get statistics
+    pending_requests = HolidayRequest._base_manager.filter(organization=tenant, status='pending').count()
+    approved_requests = HolidayRequest._base_manager.filter(organization=tenant, status='approved').count()
+    
+    # Recent requests (last 30 days)
+    thirty_days_ago = timezone.now().date() - timedelta(days=30)
+    recent_requests = (
+        HolidayRequest._base_manager
+        .select_related('user')
+        .filter(organization=tenant, created_at__date__gte=thirty_days_ago)
+        .order_by('-created_at')[:10]
     )
-
-    if request.method == 'POST':
-        holiday_request.status = 'cancelled'
-        holiday_request.save()
-        
-        log_audit(
-            actor=request.user,
-            subject=request.user,
-            action=AuditAction.BOOKING_CANCELLED,
-            message=f"Holiday request cancelled: {holiday_request.reason} from {holiday_request.start_date} to {holiday_request.end_date}"
+    
+    # Upcoming approved holidays (next 30 days)
+    thirty_days_ahead = timezone.now().date() + timedelta(days=30)
+    upcoming_holidays = (
+        HolidayRequest._base_manager
+        .select_related('user')
+        .filter(
+            organization=tenant, 
+            status='approved',
+            start_date__lte=thirty_days_ahead,
+            end_date__gte=timezone.now().date()
         )
-        
-        messages.success(request, "Holiday request cancelled successfully.")
-        return redirect("shifts:my_holidays")
-
-    messages.error(request, "Invalid request method.")
-    return redirect("shifts:my_holidays")
+        .order_by('start_date')
+    )
+    
+    context = {
+        'pending_requests': pending_requests,
+        'approved_requests': approved_requests,
+        'recent_requests': recent_requests,
+        'upcoming_holidays': upcoming_holidays,
+    }
+    
+    return render(request, "admin/holiday_dashboard.html", context)
 
 
 @login_required
 @user_passes_test(is_admin)
-def approve_holiday_request(request, request_id):
-    """Approve holiday request"""
+def admin_add_holiday_request(request):
+    """Admin can add holiday request for any user"""
     tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
     if tenant is None:
         messages.error(request, "No active workspace selected. Please select an organization.")
         return redirect("home")
 
-    holiday_request = get_object_or_404(
-        HolidayRequest._base_manager.select_related('user'), 
-        id=request_id, 
-        organization=tenant,
-        status='pending'
-    )
-
     if request.method == 'POST':
-        admin_notes = request.POST.get('admin_notes', '').strip()
+        form = HolidayRequestForm(request.POST)
+        user_id = request.POST.get('user_id')
+        auto_approve = request.POST.get('auto_approve') == '1'
         
-        holiday_request.status = 'approved'
-        holiday_request.admin_notes = admin_notes
-        holiday_request.save()
-        
-        log_audit(
-            actor=request.user,
-            subject=holiday_request.user,
-            action=AuditAction.BOOKING_CREATED,
-            message=f"Holiday request approved for {holiday_request.user.username}: {holiday_request.reason} from {holiday_request.start_date} to {holiday_request.end_date}"
-        )
-        
-        messages.success(request, f"Holiday request approved for {holiday_request.user.username}.")
-        return redirect("shifts:admin_holiday_requests")
-
-    return render(request, "admin/approve_holiday.html", {"holiday_request": holiday_request})
-
-
-@login_required
-@user_passes_test(is_admin)
-def reject_holiday_request(request, request_id):
-    """Reject holiday request"""
-    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
-    if tenant is None:
-        messages.error(request, "No active workspace selected. Please select an organization.")
-        return redirect("home")
-
-    holiday_request = get_object_or_404(
-        HolidayRequest._base_manager.select_related('user'), 
-        id=request_id, 
-        organization=tenant,
-        status='pending'
-    )
-
-    if request.method == 'POST':
-        admin_notes = request.POST.get('admin_notes', '').strip()
-        
-        if not admin_notes:
-            messages.error(request, "Please provide a reason for rejection.")
-            return redirect("shifts:admin_holiday_requests")
-        
-        holiday_request.status = 'rejected'
-        holiday_request.admin_notes = admin_notes
-        holiday_request.save()
-        
-        log_audit(
-            actor=request.user,
-            subject=holiday_request.user,
-            action=AuditAction.BOOKING_CANCELLED,
-            message=f"Holiday request rejected for {holiday_request.user.username}: {holiday_request.reason} from {holiday_request.start_date} to {holiday_request.end_date}. Reason: {admin_notes}"
-        )
-        
-        messages.success(request, f"Holiday request rejected for {holiday_request.user.username}.")
-        return redirect("shifts:admin_holiday_requests")
-
-    return render(request, "admin/reject_holiday.html", {"holiday_request": holiday_request})
+        if form.is_valid() and user_id:
+            try:
+                selected_user = User.objects.get(id=user_id, profile__organization=tenant)
+                holiday = form.save(commit=False)
+                holiday.user = selected_user
+                holiday.organization = tenant
+                
+                if auto_approve:
+                    holiday.status = 'approved'
+                    holiday.reviewed_by = request.user
+                    holiday.reviewed_at = timezone.now()
+                    holiday.admin_notes = "Auto-approved by admin"
+                
+                holiday.save()
+                
+                log_audit(
+                    actor=request.user,
+                    subject=selected_user,
+                    action=AuditAction.BOOKING_CREATED,
+                    message=f"Admin added holiday request for {selected_user.username}: {holiday.reason} from {holiday.start_date} to {holiday.end_date}"
+                )
+                
+                status_msg = "approved" if auto_approve else "created"
+                messages.success(request, f"Holiday request {status_msg} for {selected_user.username}.")
+                return redirect("shifts:admin_holiday_requests")
+            except User.DoesNotExist:
+                messages.error(request, "Selected user not found.")
+        else:
+            messages.error(request, "Please fix the errors below.")
+    else:
+        form = HolidayRequestForm()
+    
+    # Get all users for dropdown
+    users = User.objects.filter(profile__organization=tenant).order_by('username')
+    
+    return render(request, "admin/add_holiday_request.html", {"form": form, "users": users})

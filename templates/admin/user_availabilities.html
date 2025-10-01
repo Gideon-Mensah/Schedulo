@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}User Availabilities - Admin{% endblock %}
+
+{% block head %}
+<style>
+    .availability-card {
+        border-left: 4px solid var(--primary);
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+    }
+    
+    .availability-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .availability-available {
+        border-left-color: #28a745;
+    }
+    
+    .availability-unavailable {
+        border-left-color: #dc3545;
+    }
+    
+    .availability-preferred {
+        border-left-color: #007bff;
+    }
+    
+    .availability-badge {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 15px;
+        font-weight: 500;
+    }
+    
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid #e9ecef;
+    }
+    
+    .stats-row {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+        color: white;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-gradient:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-1px);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-calendar-check text-primary me-2"></i>
+                User Availabilities Management
+            </h1>
+            <p class="text-muted">Manage user availability settings across your organization</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'shifts:admin_add_user_availability' %}" class="btn btn-gradient">
+                <i class="fas fa-plus me-2"></i>Add Availability
+            </a>
+        </div>
+    </div>
+    
+    <!-- Statistics Row -->
+    <div class="stats-row">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ availabilities|length }}</div>
+                    <div>Total Records</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">
+                        {% with available_count=0 %}
+                            {% for availability in availabilities %}
+                                {% if availability.availability_type == 'available' %}
+                                    {% with available_count=available_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ available_count }}
+                        {% endwith %}
+                    </div>
+                    <div>Available</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">
+                        {% with unavailable_count=0 %}
+                            {% for availability in availabilities %}
+                                {% if availability.availability_type == 'unavailable' %}
+                                    {% with unavailable_count=unavailable_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ unavailable_count }}
+                        {% endwith %}
+                    </div>
+                    <div>Unavailable</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">
+                        {% with preferred_count=0 %}
+                            {% for availability in availabilities %}
+                                {% if availability.availability_type == 'preferred' %}
+                                    {% with preferred_count=preferred_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ preferred_count }}
+                        {% endwith %}
+                    </div>
+                    <div>Preferred</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <h5 class="mb-3">
+            <i class="fas fa-filter me-2"></i>Filters
+        </h5>
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="user" class="form-label">User</label>
+                <input type="text" class="form-control" id="user" name="user" 
+                       value="{{ user_filter }}" placeholder="Search by name or username">
+            </div>
+            <div class="col-md-3">
+                <label for="date" class="form-label">Date</label>
+                <input type="date" class="form-control" id="date" name="date" value="{{ date_filter }}">
+            </div>
+            <div class="col-md-3">
+                <label for="availability_type" class="form-label">Availability Type</label>
+                <select class="form-select" id="availability_type" name="availability_type">
+                    <option value="">All Types</option>
+                    {% for value, label in availability_choices %}
+                        <option value="{{ value }}" {% if availability_type_filter == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search me-1"></i>Filter
+                </button>
+                <a href="{% url 'shifts:admin_user_availabilities' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Clear
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Availabilities List -->
+    {% if availabilities %}
+        <div class="row">
+            {% for availability in availabilities %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card availability-card availability-{{ availability.availability_type }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-0">
+                                    <i class="fas fa-user me-2"></i>
+                                    {{ availability.user.get_full_name|default:availability.user.username }}
+                                </h6>
+                                <span class="badge availability-badge 
+                                    {% if availability.availability_type == 'available' %}bg-success
+                                    {% elif availability.availability_type == 'unavailable' %}bg-danger
+                                    {% else %}bg-primary{% endif %}">
+                                    {{ availability.get_availability_type_display }}
+                                </span>
+                            </div>
+                            
+                            <p class="card-text mb-2">
+                                <i class="fas fa-calendar me-2"></i>
+                                <strong>{{ availability.date|date:"D, M j, Y" }}</strong>
+                            </p>
+                            
+                            {% if not availability.is_all_day %}
+                                <p class="card-text mb-2">
+                                    <i class="fas fa-clock me-2"></i>
+                                    {% if availability.start_time and availability.end_time %}
+                                        {{ availability.start_time|time:"H:i" }} - {{ availability.end_time|time:"H:i" }}
+                                    {% elif availability.start_time %}
+                                        From {{ availability.start_time|time:"H:i" }}
+                                    {% elif availability.end_time %}
+                                        Until {{ availability.end_time|time:"H:i" }}
+                                    {% endif %}
+                                </p>
+                            {% else %}
+                                <p class="card-text mb-2">
+                                    <i class="fas fa-clock me-2"></i>
+                                    <em>All day</em>
+                                </p>
+                            {% endif %}
+                            
+                            {% if availability.notes %}
+                                <p class="card-text small text-muted mb-2">
+                                    <i class="fas fa-sticky-note me-2"></i>
+                                    {{ availability.notes|truncatechars:60 }}
+                                </p>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <small class="text-muted">
+                                    Created {{ availability.created_at|date:"M j, Y" }}
+                                </small>
+                                <form method="post" action="{% url 'shifts:admin_delete_user_availability' availability.id %}" 
+                                      onsubmit="return confirm('Are you sure you want to delete this availability record?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-calendar-times text-muted" style="font-size: 4rem;"></i>
+            <h4 class="mt-3 text-muted">No availability records found</h4>
+            <p class="text-muted">
+                {% if user_filter or date_filter or availability_type_filter %}
+                    Try adjusting your filters or 
+                    <a href="{% url 'shifts:admin_user_availabilities' %}">clear all filters</a>.
+                {% else %}
+                    Users haven't set their availability yet.
+                {% endif %}
+            </p>
+            <a href="{% url 'shifts:admin_add_user_availability' %}" class="btn btn-gradient mt-3">
+                <i class="fas fa-plus me-2"></i>Add First Availability
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Add User Availability - Admin{% endblock %}
+
+{% block head %}
+<style>
+    .form-container {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        border: 1px solid #e3e8ff;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .btn-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-gradient:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-1px);
+        color: white;
+    }
+    
+    .btn-secondary {
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+    }
+    
+    .availability-preview {
+        background: #e8f4fd;
+        border-left: 4px solid #007bff;
+        padding: 1rem;
+        border-radius: 0 8px 8px 0;
+        margin-top: 1rem;
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .alert-info {
+        background-color: #e7f3ff;
+        border-color: #b3d9ff;
+        color: #004085;
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2 class="mb-0">
+                        <i class="fas fa-calendar-plus me-2"></i>
+                        Add User Availability
+                    </h2>
+                    <p class="mb-0 mt-2 opacity-75">Set availability for any user in your organization</p>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    As an admin, you can add availability records for any user. This will help with shift scheduling and planning.
+                </div>
+                
+                <form method="post" id="availabilityForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="user_id" class="form-label">
+                                    <i class="fas fa-user me-2"></i>Select User
+                                </label>
+                                <select name="user_id" id="user_id" class="form-select" required>
+                                    <option value="">Choose a user...</option>
+                                    {% for user in users %}
+                                        <option value="{{ user.id }}">
+                                            {{ user.get_full_name|default:user.username }}
+                                            {% if user.email %} ({{ user.email }}){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.availability_type.id_for_label }}" class="form-label">
+                                    <i class="fas fa-check-circle me-2"></i>Availability Type
+                                </label>
+                                {{ form.availability_type }}
+                                {% if form.availability_type.errors %}
+                                    <div class="text-danger small mt-1">{{ form.availability_type.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="{{ form.date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar me-2"></i>Date
+                                </label>
+                                {{ form.date }}
+                                {% if form.date.errors %}
+                                    <div class="text-danger small mt-1">{{ form.date.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="{{ form.start_time.id_for_label }}" class="form-label">
+                                    <i class="fas fa-clock me-2"></i>Start Time
+                                </label>
+                                {{ form.start_time }}
+                                <div class="help-text">Leave blank for all day</div>
+                                {% if form.start_time.errors %}
+                                    <div class="text-danger small mt-1">{{ form.start_time.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="{{ form.end_time.id_for_label }}" class="form-label">
+                                    <i class="fas fa-clock me-2"></i>End Time
+                                </label>
+                                {{ form.end_time }}
+                                <div class="help-text">Leave blank for all day</div>
+                                {% if form.end_time.errors %}
+                                    <div class="text-danger small mt-1">{{ form.end_time.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">
+                            <i class="fas fa-sticky-note me-2"></i>Notes
+                        </label>
+                        {{ form.notes }}
+                        <div class="help-text">Optional notes about this availability</div>
+                        {% if form.notes.errors %}
+                            <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Preview Section -->
+                    <div id="availability-preview" class="availability-preview" style="display: none;">
+                        <h6><i class="fas fa-eye me-2"></i>Preview</h6>
+                        <div id="preview-content"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'shifts:admin_user_availabilities' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Availabilities
+                        </a>
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save me-2"></i>Add Availability
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('availabilityForm');
+    const preview = document.getElementById('availability-preview');
+    const previewContent = document.getElementById('preview-content');
+    
+    // Form fields
+    const userSelect = document.getElementById('user_id');
+    const availabilityType = document.getElementById('{{ form.availability_type.id_for_label }}');
+    const dateField = document.getElementById('{{ form.date.id_for_label }}');
+    const startTimeField = document.getElementById('{{ form.start_time.id_for_label }}');
+    const endTimeField = document.getElementById('{{ form.end_time.id_for_label }}');
+    const notesField = document.getElementById('{{ form.notes.id_for_label }}');
+    
+    function updatePreview() {
+        const user = userSelect.options[userSelect.selectedIndex]?.text || '';
+        const type = availabilityType.options[availabilityType.selectedIndex]?.text || '';
+        const date = dateField.value;
+        const startTime = startTimeField.value;
+        const endTime = endTimeField.value;
+        const notes = notesField.value;
+        
+        if (user && type && date) {
+            let timeStr = '';
+            if (startTime && endTime) {
+                timeStr = ` from ${startTime} to ${endTime}`;
+            } else if (startTime) {
+                timeStr = ` from ${startTime}`;
+            } else if (endTime) {
+                timeStr = ` until ${endTime}`;
+            } else {
+                timeStr = ' (all day)';
+            }
+            
+            let html = `<strong>${user}</strong> will be marked as <strong>${type}</strong> on <strong>${new Date(date).toLocaleDateString()}</strong>${timeStr}.`;
+            
+            if (notes) {
+                html += `<br><em>Notes: ${notes}</em>`;
+            }
+            
+            previewContent.innerHTML = html;
+            preview.style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+    
+    // Add event listeners
+    [userSelect, availabilityType, dateField, startTimeField, endTimeField, notesField].forEach(field => {
+        if (field) {
+            field.addEventListener('change', updatePreview);
+            field.addEventListener('input', updatePreview);
+        }
+    });
+    
+    // Set minimum date to today
+    if (dateField) {
+        dateField.min = new Date().toISOString().split('T')[0];
+    }
+});
+</script>
+{% endblock %}
