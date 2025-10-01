@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import base64
+import calendar
 import csv
 import json
+import logging
 import secrets
 import string
+import traceback
 from datetime import date, timedelta, datetime, time
 from io import BytesIO
 
@@ -1655,7 +1658,7 @@ def my_availability(request):
         .order_by('date', 'start_time')
     )
 
-    return render(request, "availability/my_availability.html", {"availability": availability})
+    return render(request, "shifts/my_availability.html", {"availability": availability})
 
 
 @login_required
@@ -1678,7 +1681,7 @@ def add_availability(request):
             try:
                 availability.save()
                 messages.success(request, "Availability added successfully.")
-                return redirect("my_availability")
+                return redirect("shifts:my_availability")
             except IntegrityError:
                 messages.error(request, "You already have availability set for this date and time.")
         else:
@@ -1688,7 +1691,7 @@ def add_availability(request):
         initial = {'date': initial_date} if initial_date else {}
         form = UserAvailabilityForm(initial=initial)
 
-    return render(request, "availability/add_availability.html", {"form": form})
+    return render(request, "shifts/add_availability.html", {"form": form})
 
 
 # ---------- Holiday Request Views ----------
@@ -1708,7 +1711,7 @@ def my_holidays(request):
         .order_by('-created_at')
     )
 
-    return render(request, "holidays/my_holidays.html", {"holidays": holidays})
+    return render(request, "shifts/my_holidays.html", {"holidays": holidays})
 
 
 @login_required
@@ -1738,7 +1741,7 @@ def request_holiday(request):
             )
             
             messages.success(request, "Holiday request submitted successfully.")
-            return redirect("my_holidays")
+            return redirect("shifts:my_holidays")
         else:
             messages.error(request, "Please fix the errors below.")
     else:
@@ -1751,7 +1754,7 @@ def request_holiday(request):
             initial['end_date'] = end_date
         form = HolidayRequestForm(initial=initial)
 
-    return render(request, "holidays/request_holiday.html", {"form": form})
+    return render(request, "shifts/request_holiday.html", {"form": form})
 
 
 # ---------- Admin Holiday Management Views ----------
@@ -1785,3 +1788,170 @@ def admin_holiday_requests(request):
         'status_choices': HolidayRequest.STATUS_CHOICES,
     }
     return render(request, "admin/holiday_requests.html", context)
+
+# ---------- Additional Availability Management Views ----------
+@login_required
+def edit_availability(request, availability_id):
+    """Edit existing availability entry"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    availability = get_object_or_404(
+        UserAvailability._base_manager, 
+        id=availability_id, 
+        user=request.user, 
+        organization=tenant
+    )
+
+    if request.method == 'POST':
+        form = UserAvailabilityForm(request.POST, instance=availability)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, "Availability updated successfully.")
+                return redirect("shifts:my_availability")
+            except IntegrityError:
+                messages.error(request, "You already have availability set for this date and time.")
+        else:
+            messages.error(request, "Please fix the errors below.")
+    else:
+        form = UserAvailabilityForm(instance=availability)
+
+    return render(request, "shifts/add_availability.html", {"form": form, "edit_mode": True})
+
+
+@login_required
+def delete_availability(request, availability_id):
+    """Delete availability entry"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    availability = get_object_or_404(
+        UserAvailability._base_manager, 
+        id=availability_id, 
+        user=request.user, 
+        organization=tenant
+    )
+
+    if request.method == 'POST':
+        availability.delete()
+        messages.success(request, "Availability deleted successfully.")
+        return redirect("shifts:my_availability")
+
+    messages.error(request, "Invalid request method.")
+    return redirect("shifts:my_availability")
+
+
+# ---------- Additional Holiday Management Views ----------
+@login_required
+def cancel_holiday_request(request, request_id):
+    """Cancel pending holiday request"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    holiday_request = get_object_or_404(
+        HolidayRequest._base_manager, 
+        id=request_id, 
+        user=request.user, 
+        organization=tenant,
+        status='pending'
+    )
+
+    if request.method == 'POST':
+        holiday_request.status = 'cancelled'
+        holiday_request.save()
+        
+        log_audit(
+            actor=request.user,
+            subject=request.user,
+            action=AuditAction.BOOKING_CANCELLED,
+            message=f"Holiday request cancelled: {holiday_request.reason} from {holiday_request.start_date} to {holiday_request.end_date}"
+        )
+        
+        messages.success(request, "Holiday request cancelled successfully.")
+        return redirect("shifts:my_holidays")
+
+    messages.error(request, "Invalid request method.")
+    return redirect("shifts:my_holidays")
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_holiday_request(request, request_id):
+    """Approve holiday request"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    holiday_request = get_object_or_404(
+        HolidayRequest._base_manager.select_related('user'), 
+        id=request_id, 
+        organization=tenant,
+        status='pending'
+    )
+
+    if request.method == 'POST':
+        admin_notes = request.POST.get('admin_notes', '').strip()
+        
+        holiday_request.status = 'approved'
+        holiday_request.admin_notes = admin_notes
+        holiday_request.save()
+        
+        log_audit(
+            actor=request.user,
+            subject=holiday_request.user,
+            action=AuditAction.BOOKING_CREATED,
+            message=f"Holiday request approved for {holiday_request.user.username}: {holiday_request.reason} from {holiday_request.start_date} to {holiday_request.end_date}"
+        )
+        
+        messages.success(request, f"Holiday request approved for {holiday_request.user.username}.")
+        return redirect("shifts:admin_holiday_requests")
+
+    return render(request, "admin/approve_holiday.html", {"holiday_request": holiday_request})
+
+
+@login_required
+@user_passes_test(is_admin)
+def reject_holiday_request(request, request_id):
+    """Reject holiday request"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    holiday_request = get_object_or_404(
+        HolidayRequest._base_manager.select_related('user'), 
+        id=request_id, 
+        organization=tenant,
+        status='pending'
+    )
+
+    if request.method == 'POST':
+        admin_notes = request.POST.get('admin_notes', '').strip()
+        
+        if not admin_notes:
+            messages.error(request, "Please provide a reason for rejection.")
+            return redirect("shifts:admin_holiday_requests")
+        
+        holiday_request.status = 'rejected'
+        holiday_request.admin_notes = admin_notes
+        holiday_request.save()
+        
+        log_audit(
+            actor=request.user,
+            subject=holiday_request.user,
+            action=AuditAction.BOOKING_CANCELLED,
+            message=f"Holiday request rejected for {holiday_request.user.username}: {holiday_request.reason} from {holiday_request.start_date} to {holiday_request.end_date}. Reason: {admin_notes}"
+        )
+        
+        messages.success(request, f"Holiday request rejected for {holiday_request.user.username}.")
+        return redirect("shifts:admin_holiday_requests")
+
+    return render(request, "admin/reject_holiday.html", {"holiday_request": holiday_request})
