@@ -132,5 +132,11 @@ class ComplianceDocumentAdmin(admin.ModelAdmin):
     autocomplete_fields = ("user", "doc_type", "uploaded_by")
 
 
+# Customize Django Admin site branding
+admin.site.site_header = "Schedulo Admin"        # header (replaces "Django administration")
+admin.site.site_title = "Schedulo Admin"         # <title> text
+admin.site.index_title = "Welcome to Schedulo"   # dashboard index title
+
+
 
 
