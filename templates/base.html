@@ -190,6 +190,11 @@
                 </a>
               </li>
               <li class="nav-item">
+                <a class="nav-link {% if url_name == 'my_calendar' %}active{% endif %}" href="{% url 'my_calendar' %}">
+                  My Calendar
+                </a>
+              </li>
+              <li class="nav-item">
                 <a class="nav-link {% if url_name == 'completed_shifts' %}active{% endif %}" href="{% url 'completed_shifts' %}">
                   Completed Shifts (Upaid)
                 </a>

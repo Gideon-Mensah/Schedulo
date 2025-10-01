@@ -382,6 +382,105 @@ def cancel_booking(request, booking_id):
           message=f"{request.user.username} cancelled booking for '{booking.shift.title}'.")
     return redirect("my_bookings")
 
+# ---------- Calendar View ----------
+@login_required
+def my_calendar(request):
+    """Calendar view showing user's booked shifts"""
+    import calendar
+    
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    # Get month and year from query params or use current
+    now = timezone.localtime()
+    try:
+        year = int(request.GET.get('year', now.year))
+        month = int(request.GET.get('month', now.month))
+    except (ValueError, TypeError):
+        year, month = now.year, now.month
+
+    # Ensure valid month/year ranges
+    if month < 1:
+        month = 12
+        year -= 1
+    elif month > 12:
+        month = 1
+        year += 1
+
+    # Calculate previous and next month for navigation
+    prev_month = month - 1 if month > 1 else 12
+    prev_year = year if month > 1 else year - 1
+    next_month = month + 1 if month < 12 else 1
+    next_year = year if month < 12 else year + 1
+
+    # Get first and last day of the month
+    first_day = date(year, month, 1)
+    if month == 12:
+        last_day = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        last_day = date(year, month + 1, 1) - timedelta(days=1)
+
+    # Get all bookings for the month
+    bookings = (
+        ShiftBooking._base_manager
+        .select_related("shift")
+        .filter(
+            user=request.user,
+            organization=tenant,
+            shift__date__gte=first_day,
+            shift__date__lte=last_day
+        )
+        .order_by("shift__date", "shift__start_time")
+    )
+
+    # Group bookings by date
+    bookings_by_date = {}
+    for booking in bookings:
+        shift_date = booking.shift.date
+        if shift_date not in bookings_by_date:
+            bookings_by_date[shift_date] = []
+        bookings_by_date[shift_date].append(booking)
+
+    # Generate calendar
+    cal = calendar.Calendar(firstweekday=0)  # Monday = 0
+    month_days = cal.monthdayscalendar(year, month)
+    
+    # Create calendar data structure
+    calendar_weeks = []
+    for week in month_days:
+        week_data = []
+        for day in week:
+            if day == 0:
+                week_data.append({'day': None, 'bookings': []})
+            else:
+                day_date = date(year, month, day)
+                day_bookings = bookings_by_date.get(day_date, [])
+                week_data.append({
+                    'day': day,
+                    'date': day_date,
+                    'bookings': day_bookings,
+                    'is_today': day_date == now.date(),
+                    'is_past': day_date < now.date()
+                })
+        calendar_weeks.append(week_data)
+
+    context = {
+        'year': year,
+        'month': month,
+        'month_name': calendar.month_name[month],
+        'calendar_weeks': calendar_weeks,
+        'prev_month': prev_month,
+        'prev_year': prev_year,
+        'next_month': next_month,
+        'next_year': next_year,
+        'today': now.date(),
+        'weekdays': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    }
+    
+    return render(request, "shifts/calendar.html", context)
+
 # ---------- Login (no-cache) ----------
 @method_decorator(
     [never_cache, cache_control(no_cache=True, no_store=True, must_revalidate=True)],

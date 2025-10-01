@@ -1,0 +1,335 @@
+{% extends 'base.html' %}
+
+{% block title %}My Calendar - Schedulo{% endblock %}
+
+{% block content %}
+<style>
+  :root{
+    --primary: #5b8cff;
+    --success: #36d399;
+    --warning: #f6c34f;
+    --danger:  #ff6b6b;
+    --muted: #6b7280;
+    --card-bg: #fff;
+    --card-border: #e5e7eb;
+    --card-radius: 14px;
+  }
+
+  .calendar-container {
+    background: var(--card-bg);
+    border-radius: var(--card-radius);
+    border: 1px solid var(--card-border);
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    margin-bottom: 20px;
+  }
+
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--card-border);
+  }
+
+  .calendar-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .calendar-nav a {
+    color: var(--primary);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--card-border);
+    transition: all 0.2s;
+  }
+
+  .calendar-nav a:hover {
+    background: var(--primary);
+    color: white;
+  }
+
+  .calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+  }
+
+  .calendar-table th {
+    background: #f8fafc;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 12px 8px;
+    text-align: center;
+    border: 1px solid var(--card-border);
+  }
+
+  .calendar-table td {
+    border: 1px solid var(--card-border);
+    vertical-align: top;
+    padding: 0;
+    height: 120px;
+    position: relative;
+  }
+
+  .calendar-day {
+    padding: 8px;
+    height: 100%;
+    position: relative;
+  }
+
+  .calendar-day-number {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+  }
+
+  .calendar-day.today .calendar-day-number {
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+  }
+
+  .calendar-day.past {
+    background: #f9fafb;
+    color: var(--muted);
+  }
+
+  .calendar-day.empty {
+    background: #fafafa;
+  }
+
+  .shift-item {
+    background: var(--primary);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin-bottom: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .shift-item.completed {
+    background: var(--success);
+  }
+
+  .shift-item.in-progress {
+    background: var(--warning);
+    color: #000;
+  }
+
+  .shift-item.upcoming {
+    background: var(--primary);
+  }
+
+  .shift-item:hover {
+    opacity: 0.8;
+  }
+
+  .calendar-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+  }
+
+  .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+
+  .quick-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .tooltip {
+    position: absolute;
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    z-index: 1000;
+    white-space: nowrap;
+    transform: translateX(-50%);
+    bottom: 100%;
+    left: 50%;
+    margin-bottom: 4px;
+    display: none;
+  }
+
+  .shift-item:hover .tooltip {
+    display: block;
+  }
+
+  @media (max-width: 768px) {
+    .calendar-table td {
+      height: 80px;
+    }
+    
+    .calendar-day {
+      padding: 4px;
+    }
+    
+    .shift-item {
+      font-size: 0.6rem;
+      padding: 1px 2px;
+    }
+    
+    .quick-actions {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="container-fluid">
+  <div class="quick-actions">
+    <a href="{% url 'my_bookings' %}" class="btn btn-outline-primary">
+      <i class="fa fa-list me-2"></i>My Bookings
+    </a>
+    <a href="{% url 'available_shifts' %}" class="btn btn-primary">
+      <i class="fa fa-plus me-2"></i>Book New Shift
+    </a>
+    <a href="{% url 'completed_shifts' %}" class="btn btn-outline-secondary">
+      <i class="fa fa-check me-2"></i>Completed Shifts
+    </a>
+  </div>
+
+  <div class="calendar-container">
+    <div class="calendar-header">
+      <div>
+        <h3 class="mb-1">My Shift Calendar</h3>
+        <p class="text-muted mb-0">{{ month_name }} {{ year }}</p>
+      </div>
+      <div class="calendar-nav">
+        <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn-nav">
+          <i class="fa fa-chevron-left"></i> Previous
+        </a>
+        <a href="?year={{ today.year }}&month={{ today.month }}" class="btn btn-outline-primary btn-sm">
+          Today
+        </a>
+        <a href="?year={{ next_year }}&month={{ next_month }}" class="btn-nav">
+          Next <i class="fa fa-chevron-right"></i>
+        </a>
+      </div>
+    </div>
+
+    <table class="calendar-table">
+      <thead>
+        <tr>
+          {% for weekday in weekdays %}
+            <th>{{ weekday }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in calendar_weeks %}
+          <tr>
+            {% for day_data in week %}
+              <td>
+                {% if day_data.day %}
+                  <div class="calendar-day{% if day_data.is_today %} today{% endif %}{% if day_data.is_past %} past{% endif %}">
+                    <div class="calendar-day-number">{{ day_data.day }}</div>
+                    {% for booking in day_data.bookings %}
+                      <div class="shift-item 
+                        {% if booking.clock_in_at and booking.clock_out_at %}completed
+                        {% elif booking.clock_in_at and not booking.clock_out_at %}in-progress
+                        {% else %}upcoming{% endif %}" 
+                        title="{{ booking.shift.title }} ({{ booking.shift.start_time|time:'H:i' }}{% if booking.shift.end_time %}-{{ booking.shift.end_time|time:'H:i' }}{% endif %})">
+                        {{ booking.shift.title|truncatechars:12 }}
+                        {% if booking.shift.start_time %}
+                          <br><small>{{ booking.shift.start_time|time:'H:i' }}</small>
+                        {% endif %}
+                        <div class="tooltip">
+                          <strong>{{ booking.shift.title }}</strong><br>
+                          {% if booking.shift.start_time and booking.shift.end_time %}
+                            {{ booking.shift.start_time|time:'H:i' }} - {{ booking.shift.end_time|time:'H:i' }}
+                          {% elif booking.shift.start_time %}
+                            From {{ booking.shift.start_time|time:'H:i' }}
+                          {% endif %}<br>
+                          Role: {{ booking.shift.role }}<br>
+                          Status: 
+                          {% if booking.clock_in_at and booking.clock_out_at %}Completed
+                          {% elif booking.clock_in_at %}In Progress
+                          {% else %}Upcoming{% endif %}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <div class="calendar-day empty"></div>
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="calendar-legend">
+      <div class="legend-item">
+        <div class="legend-color" style="background: var(--primary);"></div>
+        <span>Upcoming Shifts</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: var(--warning);"></div>
+        <span>In Progress</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: var(--success);"></div>
+        <span>Completed</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: var(--primary); border-radius: 50%;"></div>
+        <span>Today</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Add click functionality to shift items
+document.querySelectorAll('.shift-item').forEach(item => {
+  item.addEventListener('click', function() {
+    // You could add modal functionality here to show shift details
+    console.log('Shift clicked:', this.getAttribute('title'));
+  });
+});
+
+// Improve mobile experience
+if (window.innerWidth <= 768) {
+  document.querySelectorAll('.shift-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      const tooltip = this.querySelector('.tooltip');
+      if (tooltip) {
+        tooltip.style.display = tooltip.style.display === 'block' ? 'none' : 'block';
+      }
+    });
+  });
+}
+</script>
+{% endblock %}

@@ -29,6 +29,7 @@ urlpatterns = [
     path("available-shifts/", shift_views.available_shifts, name="available_shifts"),
     path("book-shift/<int:shift_id>/", shift_views.book_shift, name="book_shift"),
     path("my-bookings/", shift_views.my_bookings, name="my_bookings"),
+    path("my-calendar/", shift_views.my_calendar, name="my_calendar"),
     path("completed-shifts/", shift_views.completed_shifts, name="completed_shifts"),
     path("past-shifts/", shift_views.past_shifts, name="past_shifts"),
     path("cancel-booking/<int:booking_id>/", shift_views.cancel_booking, name="cancel_booking"),
