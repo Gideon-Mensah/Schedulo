@@ -195,6 +195,54 @@
     font-weight: 700;
   }
   
+  .calendar-day.holiday {
+    background: linear-gradient(135deg, #fef3c7, #fbbf24);
+    border-left: 4px solid var(--warning);
+  }
+  
+  .holiday-indicator {
+    background: var(--warning);
+    color: #92400e;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    margin-bottom: 4px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .availability-item {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    margin-bottom: 3px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.2;
+  }
+  
+  .availability-item.availability-available {
+    background: #dcfce7;
+    color: #16a34a;
+    border-left: 2px solid var(--success);
+  }
+  
+  .availability-item.availability-unavailable {
+    background: #fee2e2;
+    color: #dc2626;
+    border-left: 2px solid var(--danger);
+  }
+  
+  .availability-item.availability-preferred {
+    background: #e0f2fe;
+    color: #0284c7;
+    border-left: 2px solid #0ea5e9;
+  }
+  
   .day-number {
     font-weight: 600;
     margin-bottom: 8px;
@@ -359,18 +407,24 @@
     <div class="calendar-header">
         <div>
             <h2 class="calendar-title">My Calendar</h2>
-            <p class="calendar-subtitle">View your scheduled shifts</p>
+            <p class="calendar-subtitle">View your shifts, availability, and holidays</p>
         </div>
         <div class="calendar-nav">
             <a href="?month={{ prev_month }}&year={{ prev_year }}" class="nav-btn outline">
                 <i class="fa fa-chevron-left"></i>
             </a>
-            <span class="current-month">{{ current_month_name }} {{ current_year }}</span>
+            <span class="current-month">{{ month_name }} {{ year }}</span>
             <a href="?month={{ next_month }}&year={{ next_year }}" class="nav-btn outline">
                 <i class="fa fa-chevron-right"></i>
             </a>
             <a href="{% url 'home' %}" class="nav-btn">
                 <i class="fa fa-home"></i>Dashboard
+            </a>
+            <a href="{% url 'my_availability' %}" class="nav-btn outline">
+                <i class="fa fa-clock-o"></i>Availability
+            </a>
+            <a href="{% url 'my_holidays' %}" class="nav-btn outline">
+                <i class="fa fa-calendar-check-o"></i>Holidays
             </a>
         </div>
     </div>    
@@ -384,9 +438,28 @@
         <div class="calendar-days">
             {% for week in calendar_weeks %}
                 {% for day_data in week %}
-                    <div class="calendar-day{% if day_data.is_today %} today{% endif %}{% if not day_data.day %} other-month{% endif %}">
+                    <div class="calendar-day{% if day_data.is_today %} today{% endif %}{% if not day_data.day %} other-month{% endif %}{% if day_data.is_holiday %} holiday{% endif %}">
                         {% if day_data.day %}
                             <div class="day-number">{{ day_data.day }}</div>
+                            
+                            <!-- Holiday indicator -->
+                            {% if day_data.holiday %}
+                                <div class="holiday-indicator" 
+                                     title="Holiday: {{ day_data.holiday.reason }} ({{ day_data.holiday.get_status_display }})">
+                                    🏖️ {{ day_data.holiday.reason|truncatechars:15 }}
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Availability indicators -->
+                            {% for avail in day_data.availability %}
+                                <div class="availability-item availability-{{ avail.availability_type }}"
+                                     title="{% if avail.availability_type == 'available' %}Available{% elif avail.availability_type == 'unavailable' %}Unavailable{% else %}Preferred{% endif %}: {{ avail.start_time|time:'H:i' }}-{{ avail.end_time|time:'H:i' }}">
+                                    {% if avail.availability_type == 'available' %}✓{% elif avail.availability_type == 'unavailable' %}✗{% else %}★{% endif %}
+                                    {{ avail.start_time|time:'H:i' }}
+                                </div>
+                            {% endfor %}
+                            
+                            <!-- Shift bookings -->
                             {% for booking in day_data.bookings %}
                                 <div class="shift-item 
                                     {% if booking.clock_in_at and booking.clock_out_at %}completed
@@ -406,20 +479,42 @@
         </div>
     </div>
 
-    {% if bookings %}
+    {% if bookings or availability or holidays %}
         <div class="legend">
-            <div class="legend-item">
-                <div class="legend-color" style="background: var(--success);"></div>
-                <span>Confirmed</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: var(--warning);"></div>
-                <span>In Progress</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: var(--muted);"></div>
-                <span>Completed</span>
-            </div>
+            {% if bookings %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--success);"></div>
+                    <span>Confirmed Shifts</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--warning);"></div>
+                    <span>In Progress</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--muted);"></div>
+                    <span>Completed</span>
+                </div>
+            {% endif %}
+            {% if availability %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #dcfce7; border: 1px solid #16a34a;"></div>
+                    <span>Available</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #fee2e2; border: 1px solid #dc2626;"></div>
+                    <span>Unavailable</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e0f2fe; border: 1px solid #0284c7;"></div>
+                    <span>Preferred</span>
+                </div>
+            {% endif %}
+            {% if holidays %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--warning);"></div>
+                    <span>Holiday</span>
+                </div>
+            {% endif %}
         </div>
     {% else %}
         <div class="empty-state">

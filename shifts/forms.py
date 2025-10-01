@@ -1,10 +1,7 @@
 # shifts/forms.py
 from django import forms
-from .models import Shift
-
-from django import forms
 from django.contrib.auth import get_user_model
-from .models import ComplianceDocument, ComplianceDocType
+from .models import Shift, UserAvailability, HolidayRequest, ComplianceDocument, ComplianceDocType
 
 class ShiftForm(forms.ModelForm):
     class Meta:
@@ -88,3 +85,82 @@ class AdminComplianceUploadForm(forms.ModelForm):
         if dtype and dtype.requires_expiry and not expiry:
             self.add_error("expiry_date", "This document type requires an expiry date.")
         return cleaned
+
+# Availability and Holiday Forms
+class UserAvailabilityForm(forms.ModelForm):
+    class Meta:
+        model = UserAvailability
+        fields = ['date', 'start_time', 'end_time', 'availability_type', 'notes']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'start_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'end_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'availability_type': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Optional notes about your availability'}),
+        }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        start_time = cleaned_data.get('start_time')
+        end_time = cleaned_data.get('end_time')
+        
+        if start_time and end_time and start_time >= end_time:
+            raise forms.ValidationError("Start time must be before end time")
+        
+        return cleaned_data
+
+
+class HolidayRequestForm(forms.ModelForm):
+    class Meta:
+        model = HolidayRequest
+        fields = ['start_date', 'end_date', 'holiday_type', 'reason']
+        widgets = {
+            'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'end_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'holiday_type': forms.Select(attrs={'class': 'form-select'}),
+            'reason': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 4, 
+                'placeholder': 'Please provide a reason for your holiday request'
+            }),
+        }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+        
+        if start_date and end_date and start_date > end_date:
+            raise forms.ValidationError("Start date cannot be after end date")
+        
+        # Ensure request is for future dates (except sick leave which can be backdated)
+        holiday_type = cleaned_data.get('holiday_type')
+        if start_date and holiday_type != 'sick_leave':
+            from django.utils import timezone
+            if start_date < timezone.localdate():
+                raise forms.ValidationError("Holiday requests must be for future dates (except sick leave)")
+        
+        return cleaned_data
+
+
+class AdminHolidayResponseForm(forms.ModelForm):
+    """Form for admin to approve/reject holiday requests"""
+    class Meta:
+        model = HolidayRequest
+        fields = ['status', 'admin_notes']
+        widgets = {
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'admin_notes': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 3, 
+                'placeholder': 'Optional notes for the user'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only show relevant status choices for admin
+        self.fields['status'].choices = [
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected'),
+        ]

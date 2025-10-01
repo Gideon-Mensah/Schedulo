@@ -33,8 +33,8 @@ from core.org_context import org_context
 
 from .utils import user_is_compliant_for_role
 
-from .forms import AdminComplianceUploadForm, AdminUserCreateForm, ShiftForm
-from .models import ComplianceDocType, Shift, ShiftBooking
+from .forms import AdminComplianceUploadForm, AdminUserCreateForm, ShiftForm, UserAvailabilityForm, HolidayRequestForm, AdminHolidayResponseForm
+from .models import ComplianceDocType, Shift, ShiftBooking, UserAvailability, HolidayRequest
 from .models import ComplianceDocument
 from .utils import log_audit
 from .models import AuditAction
@@ -90,7 +90,7 @@ def create_shift(request):
                         shift.save()
                         logger.info(
                             "Shift saved id=%s org_id=%s db_alias=%s vendor=%s",
-                            shift.id, shift.organization_id, shift._state.db, connection.vendor
+                            shift.id, shift.organization_id, shift
                         )
 
                     # 2) Defer audit so audit errors NEVER roll back the shift
@@ -392,8 +392,9 @@ def cancel_booking(request, booking_id):
 # ---------- Calendar View ----------
 @login_required
 def my_calendar(request):
-    """Calendar view showing user's booked shifts"""
+    """Calendar view showing user's booked shifts, availability, and holidays"""
     import calendar
+    from .models import UserAvailability, HolidayRequest
     
     tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
     if tenant is None:
@@ -442,13 +443,54 @@ def my_calendar(request):
         .order_by("shift__date", "shift__start_time")
     )
 
-    # Group bookings by date
+    # Get availability for the month
+    availability = (
+        UserAvailability._base_manager
+        .filter(
+            user=request.user,
+            organization=tenant,
+            date__gte=first_day,
+            date__lte=last_day
+        )
+        .order_by("date", "start_time")
+    )
+
+    # Get holiday requests for the month
+    holidays = (
+        HolidayRequest._base_manager
+        .filter(
+            user=request.user,
+            organization=tenant,
+            start_date__lte=last_day,
+            end_date__gte=first_day
+        )
+        .order_by("start_date")
+    )
+
+    # Group data by date
     bookings_by_date = {}
     for booking in bookings:
         shift_date = booking.shift.date
         if shift_date not in bookings_by_date:
             bookings_by_date[shift_date] = []
         bookings_by_date[shift_date].append(booking)
+
+    availability_by_date = {}
+    for avail in availability:
+        if avail.date not in availability_by_date:
+            availability_by_date[avail.date] = []
+        availability_by_date[avail.date].append(avail)
+
+    # Create holiday date set for easy lookup
+    holiday_dates = set()
+    holiday_info_by_date = {}
+    for holiday in holidays:
+        current_date = holiday.start_date
+        while current_date <= holiday.end_date:
+            if first_day <= current_date <= last_day:
+                holiday_dates.add(current_date)
+                holiday_info_by_date[current_date] = holiday
+            current_date += timedelta(days=1)
 
     # Generate calendar
     cal = calendar.Calendar(firstweekday=0)  # Monday = 0
@@ -460,16 +502,22 @@ def my_calendar(request):
         week_data = []
         for day in week:
             if day == 0:
-                week_data.append({'day': None, 'bookings': []})
+                week_data.append({'day': None, 'bookings': [], 'availability': [], 'holiday': None})
             else:
                 day_date = date(year, month, day)
                 day_bookings = bookings_by_date.get(day_date, [])
+                day_availability = availability_by_date.get(day_date, [])
+                day_holiday = holiday_info_by_date.get(day_date)
+                
                 week_data.append({
                     'day': day,
                     'date': day_date,
                     'bookings': day_bookings,
+                    'availability': day_availability,
+                    'holiday': day_holiday,
                     'is_today': day_date == now.date(),
-                    'is_past': day_date < now.date()
+                    'is_past': day_date < now.date(),
+                    'is_holiday': day_date in holiday_dates
                 })
         calendar_weeks.append(week_data)
 
@@ -483,7 +531,10 @@ def my_calendar(request):
         'next_month': next_month,
         'next_year': next_year,
         'today': now.date(),
-        'weekdays': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        'weekdays': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        'bookings': bookings,
+        'availability': availability,
+        'holidays': holidays
     }
     
     return render(request, "shifts/calendar.html", context)
@@ -1588,3 +1639,149 @@ def my_compliance(request):
         .order_by("doc_type__name", "-uploaded_at")
     )
     return render(request, "compliance/my_compliance.html", {"docs": docs})
+
+# ---------- User Availability Views ----------
+@login_required
+def my_availability(request):
+    """User can view and manage their availability"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    availability = (
+        UserAvailability._base_manager
+        .filter(user=request.user, organization=tenant)
+        .order_by('date', 'start_time')
+    )
+
+    return render(request, "availability/my_availability.html", {"availability": availability})
+
+
+@login_required
+def add_availability(request):
+    """Add new availability entry"""
+    from .forms import UserAvailabilityForm
+    from .models import UserAvailability
+    
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    if request.method == 'POST':
+        form = UserAvailabilityForm(request.POST)
+        if form.is_valid():
+            availability = form.save(commit=False)
+            availability.user = request.user
+            availability.organization = tenant
+            try:
+                availability.save()
+                messages.success(request, "Availability added successfully.")
+                return redirect("my_availability")
+            except IntegrityError:
+                messages.error(request, "You already have availability set for this date and time.")
+        else:
+            messages.error(request, "Please fix the errors below.")
+    else:
+        initial_date = request.GET.get('date')
+        initial = {'date': initial_date} if initial_date else {}
+        form = UserAvailabilityForm(initial=initial)
+
+    return render(request, "availability/add_availability.html", {"form": form})
+
+
+# ---------- Holiday Request Views ----------
+@login_required
+def my_holidays(request):
+    """User can view their holiday requests"""
+    from .models import HolidayRequest
+    
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    holidays = (
+        HolidayRequest._base_manager
+        .filter(user=request.user, organization=tenant)
+        .order_by('-created_at')
+    )
+
+    return render(request, "holidays/my_holidays.html", {"holidays": holidays})
+
+
+@login_required
+def request_holiday(request):
+    """Create new holiday request"""
+    from .forms import HolidayRequestForm
+    from .models import HolidayRequest
+    
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    if request.method == 'POST':
+        form = HolidayRequestForm(request.POST)
+        if form.is_valid():
+            holiday = form.save(commit=False)
+            holiday.user = request.user
+            holiday.organization = tenant
+            holiday.save()
+            
+            log_audit(
+                actor=request.user,
+                subject=request.user,
+                action=AuditAction.BOOKING_CREATED,
+                message=f"Holiday request submitted: {holiday.get_holiday_type_display()} from {holiday.start_date} to {holiday.end_date}"
+            )
+            
+            messages.success(request, "Holiday request submitted successfully.")
+            return redirect("my_holidays")
+        else:
+            messages.error(request, "Please fix the errors below.")
+    else:
+        start_date = request.GET.get('start_date')
+        end_date = request.GET.get('end_date')
+        initial = {}
+        if start_date:
+            initial['start_date'] = start_date
+        if end_date:
+            initial['end_date'] = end_date
+        form = HolidayRequestForm(initial=initial)
+
+    return render(request, "holidays/request_holiday.html", {"form": form})
+
+
+# ---------- Admin Holiday Management Views ----------
+@login_required
+@user_passes_test(is_admin)
+def admin_holiday_requests(request):
+    """Admin view to manage all holiday requests"""
+    from .models import HolidayRequest
+    
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    status_filter = request.GET.get('status', '')
+    user_filter = request.GET.get('user', '')
+    
+    holidays = HolidayRequest._base_manager.select_related('user').filter(organization=tenant)
+    
+    if status_filter:
+        holidays = holidays.filter(status=status_filter)
+    if user_filter:
+        holidays = holidays.filter(user__username__icontains=user_filter)
+    
+    holidays = holidays.order_by('-created_at')
+
+    context = {
+        'holidays': holidays,
+        'status_filter': status_filter,
+        'user_filter': user_filter,
+        'status_choices': HolidayRequest.STATUS_CHOICES,
+    }
+    return render(request, "admin/holiday_requests.html", context)

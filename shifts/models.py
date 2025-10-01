@@ -1,6 +1,7 @@
 # shifts/models.py
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import datetime, time as dtime, timedelta
 from datetime import datetime as dt, time as dtime
@@ -254,3 +255,96 @@ class AuditLog(models.Model):
         target = self.booking or self.shift or "-"
         who = self.actor or "system"
         return f"[{self.at:%Y-%m-%d %H:%M}] {who} {self.action} {target}"
+
+# User Availability and Holiday Models
+class UserAvailability(TenantOwned):
+    """User availability for specific days/times"""
+    AVAILABILITY_CHOICES = [
+        ('available', 'Available'),
+        ('unavailable', 'Unavailable'),
+        ('preferred', 'Preferred'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="availability")
+    date = models.DateField()
+    start_time = models.TimeField(null=True, blank=True, help_text="Leave blank for all day")
+    end_time = models.TimeField(null=True, blank=True, help_text="Leave blank for all day")
+    availability_type = models.CharField(max_length=12, choices=AVAILABILITY_CHOICES, default='available')
+    notes = models.TextField(blank=True, help_text="Optional notes about availability")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = TenantManager()
+    
+    class Meta:
+        unique_together = ('user', 'date', 'start_time', 'end_time')
+        ordering = ['date', 'start_time']
+    
+    def __str__(self):
+        time_str = ""
+        if self.start_time and self.end_time:
+            time_str = f" {self.start_time.strftime('%H:%M')}-{self.end_time.strftime('%H:%M')}"
+        elif self.start_time:
+            time_str = f" from {self.start_time.strftime('%H:%M')}"
+        elif self.end_time:
+            time_str = f" until {self.end_time.strftime('%H:%M')}"
+        
+        return f"{self.user} - {self.get_availability_type_display()} on {self.date}{time_str}"
+    
+    @property
+    def is_all_day(self):
+        return not self.start_time and not self.end_time
+
+
+class HolidayRequest(TenantOwned):
+    """Holiday/time off requests from users"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    HOLIDAY_TYPE_CHOICES = [
+        ('annual_leave', 'Annual Leave'),
+        ('sick_leave', 'Sick Leave'),
+        ('personal_leave', 'Personal Leave'),
+        ('emergency_leave', 'Emergency Leave'),
+        ('other', 'Other'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="holiday_requests")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    holiday_type = models.CharField(max_length=15, choices=HOLIDAY_TYPE_CHOICES, default='annual_leave')
+    reason = models.TextField(help_text="Reason for holiday request")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    
+    # Admin response
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_holidays")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    admin_notes = models.TextField(blank=True, help_text="Admin notes for approval/rejection")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = TenantManager()
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user} - {self.get_holiday_type_display()} ({self.start_date} to {self.end_date}) - {self.get_status_display()}"
+    
+    @property
+    def duration_days(self):
+        return (self.end_date - self.start_date).days + 1
+    
+    def clean(self):
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValidationError("Start date cannot be after end date")
+    
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
