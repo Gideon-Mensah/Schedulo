@@ -567,135 +567,159 @@ def _save_signature_from_dataurl(data_url: str, filename_prefix: str = "signatur
 @require_POST
 @login_required
 def clock_in(request, booking_id):
-    booking = get_object_or_404(ShiftBooking, id=booking_id, user=request.user)
-    now = timezone.localtime()
+    try:
+        try:
+            booking = get_object_or_404(ShiftBooking.objects, id=booking_id, user=request.user)
+        except ShiftBooking.DoesNotExist:
+            return _clock_json(False, "Booking not found or access denied.", status=404)
+        
+        now = timezone.localtime()
 
-    # If your existing guard rejects, allow within 30-minute grace after start
-    if not booking.can_clock_in(now=now):
-        sh = booking.shift
-        sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
-        ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
-        from datetime import timedelta
-        if not (sd <= now <= min(sd + timedelta(minutes=30), ed)):
-            return _clock_json(False, "Clock-in not allowed at this time.", status=400)
+        # If your existing guard rejects, allow within 30-minute grace after start
+        if not booking.can_clock_in(now=now):
+            sh = booking.shift
+            sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
+            ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
+            from datetime import timedelta
+            if not (sd <= now <= min(sd + timedelta(minutes=30), ed)):
+                return _clock_json(False, "Clock-in not allowed at this time.", status=400)
 
-    coords = _parse_coords_from_json(request)
-    if not coords:
-        return _clock_json(False, "Missing or invalid coordinates.", status=400)
-    lat, lng = coords
+        coords = _parse_coords_from_json(request)
+        if not coords:
+            return _clock_json(False, "Missing or invalid coordinates.", status=400)
+        lat, lng = coords
 
-    resolved_pc = _resolve_postcode(lat, lng)  # may be None
-    target_pc_raw = booking.shift.allowed_postcode or ""
+        resolved_pc = _resolve_postcode(lat, lng)  # may be None
+        target_pc_raw = booking.shift.allowed_postcode or ""
 
-    if target_pc_raw:
-        if not resolved_pc:
-            return _clock_json(False, "Could not determine your postcode from location. Please enable precise location (GPS) and try again.", status=422)
+        if target_pc_raw:
+            if not resolved_pc:
+                return _clock_json(False, "Could not determine your postcode from location. Please enable precise location (GPS) and try again.", status=422)
 
-        def _norm(s): return "".join(ch for ch in (s or "").upper() if ch.isalnum())
-        def _outward(s):
-            n = _norm(s); return n[:-3] if len(n) > 3 else n
+            def _norm(s): return "".join(ch for ch in (s or "").upper() if ch.isalnum())
+            def _outward(s):
+                n = _norm(s); return n[:-3] if len(n) > 3 else n
 
-        if not (_norm(resolved_pc) == _norm(target_pc_raw) or _outward(resolved_pc) == _outward(target_pc_raw)):
-            return _clock_json(False, f"Postcode mismatch. Detected: {resolved_pc}; expected: {target_pc_raw}.", status=403)
+            if not (_norm(resolved_pc) == _norm(target_pc_raw) or _outward(resolved_pc) == _outward(target_pc_raw)):
+                return _clock_json(False, f"Postcode mismatch. Detected: {resolved_pc}; expected: {target_pc_raw}.", status=403)
 
-    # ✅ actually persist the clock-in
-    if not booking.clock_in_at:
-        booking.clock_in_at = timezone.now()
-        booking.clock_in_lat = lat
-        booking.clock_in_lng = lng
-        booking.clock_in_postcode = resolved_pc or None
-        booking.save(update_fields=["clock_in_at", "clock_in_lat", "clock_in_lng", "clock_in_postcode"])
+        # ✅ actually persist the clock-in
+        if not booking.clock_in_at:
+            booking.clock_in_at = timezone.now()
+            booking.clock_in_lat = lat
+            booking.clock_in_lng = lng
+            booking.clock_in_postcode = resolved_pc or None
+            booking.save(update_fields=["clock_in_at", "clock_in_lat", "clock_in_lng", "clock_in_postcode"])
 
-    log_audit(actor=request.user, subject=request.user, action=AuditAction.CLOCK_IN,
-              shift=booking.shift, booking=booking,
-              message="Clock in recorded.",
-              detected_postcode=resolved_pc, lat=lat, lng=lng)
+        log_audit(actor=request.user, subject=request.user, action=AuditAction.CLOCK_IN,
+                  shift=booking.shift, booking=booking,
+                  message="Clock in recorded.",
+                  detected_postcode=resolved_pc, lat=lat, lng=lng)
 
-    messages.success(request, "Clock-in recorded.")
-    return _clock_json(True, "Clock-in successful.")
+        messages.success(request, "Clock-in recorded.")
+        return _clock_json(True, "Clock-in successful.")
+        
+    except Exception as e:
+        # Log the error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Clock-in error for booking {booking_id}: {str(e)}", exc_info=True)
+        return _clock_json(False, "An error occurred during clock-in. Please try again.", status=500)
 
 @require_POST
 @login_required
 def clock_out(request, booking_id):
-    booking = get_object_or_404(ShiftBooking, id=booking_id, user=request.user)
-    now = timezone.localtime()
+    try:
+        try:
+            booking = get_object_or_404(ShiftBooking.objects, id=booking_id, user=request.user)
+        except ShiftBooking.DoesNotExist:
+            return _clock_json(False, "Booking not found or access denied.", status=404)
+        
+        now = timezone.localtime()
 
-    if not booking.can_clock_out(now=now):
-        # Still allow if we're inside the shift window
-        sh = booking.shift
-        sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
-        ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
-        if not (sd <= now <= ed):
-            return _clock_json(False, "Clock-out not allowed right now.", status=400)
+        if not booking.can_clock_out(now=now):
+            # Still allow if we're inside the shift window
+            sh = booking.shift
+            sd = datetime.combine(sh.date, sh.start_time or time.min, tzinfo=timezone.get_current_timezone())
+            ed = datetime.combine(sh.date, sh.end_time or time.max, tzinfo=timezone.get_current_timezone())
+            if not (sd <= now <= ed):
+                return _clock_json(False, "Clock-out not allowed right now.", status=400)
 
-        # If they never clocked in and we're past the 30-min grace, backfill a sensible "in" time
-    if booking.clock_in_at is None:
-        from datetime import timedelta
-        sd = datetime.combine(booking.shift.date, booking.shift.start_time or time.min, tzinfo=timezone.get_current_timezone())
-        grace_deadline = sd + timedelta(minutes=30)
-        # Use the grace deadline, capped at 'now' just in case
-        booking.clock_in_at = min(grace_deadline, now)
-        # Optional: annotate that this was an auto backfill
-        booking.clock_out_note = (booking.clock_out_note or "")
-        booking.clock_out_note += (("\n" if booking.clock_out_note else "") + "[System] Auto-set clock-in at start+30m due to late clock-in.")
+            # If they never clocked in and we're past the 30-min grace, backfill a sensible "in" time
+        if booking.clock_in_at is None:
+            from datetime import timedelta
+            sd = datetime.combine(booking.shift.date, booking.shift.start_time or time.min, tzinfo=timezone.get_current_timezone())
+            grace_deadline = sd + timedelta(minutes=30)
+            # Use the grace deadline, capped at 'now' just in case
+            booking.clock_in_at = min(grace_deadline, now)
+            # Optional: annotate that this was an auto backfill
+            booking.clock_out_note = (booking.clock_out_note or "")
+            booking.clock_out_note += (("\n" if booking.clock_out_note else "") + "[System] Auto-set clock-in at start+30m due to late clock-in.")
 
-    payload = _parse_json(request)
+        payload = _parse_json(request)
 
-    coords = _parse_coords_from_json(request)
-    if not coords:
-        return _clock_json(False, "Missing or invalid coordinates.", status=400)
-    lat, lng = coords
+        coords = _parse_coords_from_json(request)
+        if not coords:
+            return _clock_json(False, "Missing or invalid coordinates.", status=400)
+        lat, lng = coords
 
-    resolved_pc = _resolve_postcode(lat, lng)
-    target_pc_raw = booking.shift.allowed_postcode or ""
+        resolved_pc = _resolve_postcode(lat, lng)
+        target_pc_raw = booking.shift.allowed_postcode or ""
 
-    if target_pc_raw:
-        if not resolved_pc:
-            return _clock_json(
-                False,
-                "Could not determine your postcode from location. Please enable precise location (GPS) and try again.",
-                status=422,
-            )
+        if target_pc_raw:
+            if not resolved_pc:
+                return _clock_json(
+                    False,
+                    "Could not determine your postcode from location. Please enable precise location (GPS) and try again.",
+                    status=422,
+                )
 
-        def _norm(s): return "".join(ch for ch in (s or "").upper() if ch.isalnum())
-        def _outward(s):
-            n = _norm(s)
-            return n[:-3] if len(n) > 3 else n
+            def _norm(s): return "".join(ch for ch in (s or "").upper() if ch.isalnum())
+            def _outward(s):
+                n = _norm(s)
+                return n[:-3] if len(n) > 3 else n
 
-        if not (_norm(resolved_pc) == _norm(target_pc_raw) or _outward(resolved_pc) == _outward(target_pc_raw)):
-            return _clock_json(
-                False, f"Postcode mismatch. Detected: {resolved_pc}; expected: {target_pc_raw}.", status=403
-            )
+            if not (_norm(resolved_pc) == _norm(target_pc_raw) or _outward(resolved_pc) == _outward(target_pc_raw)):
+                return _clock_json(
+                    False, f"Postcode mismatch. Detected: {resolved_pc}; expected: {target_pc_raw}.", status=403
+                )
 
-    if booking.clock_out_at:
-        return _clock_json(True, "Already clocked out.")
+        if booking.clock_out_at:
+            return _clock_json(True, "Already clocked out.")
 
-    # Optional extras
-    note = (payload.get("note") or "").strip()
-    supervisor_name = (payload.get("supervisor_name") or "").strip()
-    sig_data_url = payload.get("signature_data_url") or ""
+        # Optional extras
+        note = (payload.get("note") or "").strip()
+        supervisor_name = (payload.get("supervisor_name") or "").strip()
+        sig_data_url = payload.get("signature_data_url") or ""
 
-    booking.clock_out_at = timezone.now()
-    booking.clock_out_lat = lat
-    booking.clock_out_lng = lng
-    booking.clock_out_postcode = resolved_pc or None
-    booking.clock_out_note = note
-    booking.clock_out_supervisor_name = supervisor_name
+        booking.clock_out_at = timezone.now()
+        booking.clock_out_lat = lat
+        booking.clock_out_lng = lng
+        booking.clock_out_postcode = resolved_pc or None
+        booking.clock_out_note = note
+        booking.clock_out_supervisor_name = supervisor_name
 
-    sig_file = _save_signature_from_dataurl(sig_data_url, filename_prefix=f"booking_{booking.id}_clockout")
-    if sig_file:
-        booking.clock_out_signature.save(sig_file.name, sig_file, save=False)
+        sig_file = _save_signature_from_dataurl(sig_data_url, filename_prefix=f"booking_{booking.id}_clockout")
+        if sig_file:
+            booking.clock_out_signature.save(sig_file.name, sig_file, save=False)
 
-    booking.save()
-    
-    # For Audit log
-    log_audit(actor=request.user, subject=request.user, action=AuditAction.CLOCK_OUT,
-          shift=booking.shift, booking=booking,
-          message="Clock out recorded.",
-          detected_postcode=resolved_pc, note=note, supervisor=supervisor_name, lat=lat, lng=lng)
+        booking.save()
+        
+        # For Audit log
+        log_audit(actor=request.user, subject=request.user, action=AuditAction.CLOCK_OUT,
+              shift=booking.shift, booking=booking,
+              message="Clock out recorded.",
+              detected_postcode=resolved_pc, note=note, supervisor=supervisor_name, lat=lat, lng=lng)
 
-    messages.success(request, "Clock-out recorded.")
-    return _clock_json(True, "Clock-out successful.")
+        messages.success(request, "Clock-out recorded.")
+        return _clock_json(True, "Clock-out successful.")
+        
+    except Exception as e:
+        # Log the error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Clock-out error for booking {booking_id}: {str(e)}", exc_info=True)
+        return _clock_json(False, "An error occurred during clock-out. Please try again.", status=500)
 
 # ---------- Reports ----------
 @login_required

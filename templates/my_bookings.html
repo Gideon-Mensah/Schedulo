@@ -96,9 +96,16 @@
     // Uses your existing JSON + geolocation clock endpoints
     function postWithLocation(url) {
       if (!navigator.geolocation) {
-        alert('Geolocation not supported.')
+        alert('Geolocation not supported by your browser.')
         return
       }
+      
+      // Show loading indication
+      const button = event.target;
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Processing...';
+      
       navigator.geolocation.getCurrentPosition(
         function (pos) {
           fetch(url, {
@@ -119,17 +126,43 @@
             .then((r) =>
               r
                 .json()
-                .catch(() => ({}))
+                .catch(() => ({ msg: 'Invalid server response' }))
                 .then((d) => ({ ok: r.ok, status: r.status, data: d }))
             )
-            .then(({ ok, data }) => {
-              if (!ok) alert(data && data.msg ? data.msg : 'Clock request failed.')
-              window.location.reload()
+            .then(({ ok, status, data }) => {
+              button.disabled = false;
+              button.textContent = originalText;
+              
+              if (!ok) {
+                const errorMsg = data && data.msg ? data.msg : `Request failed with status ${status}`;
+                alert(errorMsg);
+              } else {
+                const successMsg = data && data.msg ? data.msg : 'Operation successful';
+                alert(successMsg);
+                window.location.reload();
+              }
             })
-            .catch(() => alert('Network error. Please try again.'))
+            .catch((error) => {
+              button.disabled = false;
+              button.textContent = originalText;
+              console.error('Network error:', error);
+              alert('Network error. Please check your connection and try again.');
+            })
         },
         function (err) {
-          alert(err && err.message ? err.message : 'Location permission denied.')
+          button.disabled = false;
+          button.textContent = originalText;
+          console.error('Geolocation error:', err);
+          
+          let errorMsg = 'Location permission denied.';
+          if (err.code === 1) {
+            errorMsg = 'Location access denied. Please enable location services and refresh the page.';
+          } else if (err.code === 2) {
+            errorMsg = 'Location unavailable. Please try again.';
+          } else if (err.code === 3) {
+            errorMsg = 'Location request timed out. Please try again.';
+          }
+          alert(errorMsg);
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       )
