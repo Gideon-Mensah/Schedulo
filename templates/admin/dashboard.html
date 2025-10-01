@@ -193,8 +193,16 @@
         <div class="d-grid gap-2">
           <a href="{% url 'create_shift' %}" class="btn btn-primary"><i class="fa fa-plus me-2"></i>Create a shift</a>
           <a href="{% url 'admin_manage_shifts' %}" class="btn btn-outline-secondary"><i class="fa fa-list-ul me-2"></i>Manage shifts</a>
-          <a href="{% url 'attendance_report' %}" class="btn btn-outline-secondary"><i class="fa fa-eye me-2"></i>Atendance Report</a>
-          
+          <a href="{% url 'attendance_report' %}" class="btn btn-outline-secondary"><i class="fa fa-eye me-2"></i>Attendance Report</a>
+        </div>
+      </div>
+
+      <div class="panel mb-3">
+        <h5>Holiday & Availability</h5>
+        <div class="d-grid gap-2">
+          <a href="{% url 'shifts:admin_holiday_dashboard' %}" class="btn btn-success"><i class="fa fa-chart-line me-2"></i>Holiday Dashboard</a>
+          <a href="{% url 'shifts:admin_holiday_requests' %}" class="btn btn-outline-warning"><i class="fa fa-calendar-check-o me-2"></i>Manage Requests</a>
+          <a href="{% url 'shifts:admin_user_availabilities' %}" class="btn btn-outline-info"><i class="fa fa-clock-o me-2"></i>User Availabilities</a>
         </div>
       </div>
 

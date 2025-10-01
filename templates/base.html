@@ -173,6 +173,18 @@
                     Users
                   </a>
                 </li>
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle" href="#" id="holidayDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Holidays & Availability
+                  </a>
+                  <ul class="dropdown-menu" aria-labelledby="holidayDropdown">
+                    <li><a class="dropdown-item" href="{% url 'shifts:admin_holiday_dashboard' %}">Holiday Dashboard</a></li>
+                    <li><a class="dropdown-item" href="{% url 'shifts:admin_holiday_requests' %}">Manage Requests</a></li>
+                    <li><a class="dropdown-item" href="{% url 'shifts:admin_user_availabilities' %}">User Availabilities</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'shifts:admin_add_holiday_request' %}">Add Holiday Request</a></li>
+                  </ul>
+                </li>
                <!-- <li class="nav-item">
                   <a class="nav-link" href="{% url 'admin:index' %}">Admin</a>
                 </li> -->
@@ -207,6 +219,16 @@
               <li class="nav-item">
                 <a class="nav-link {% if url_name == 'my_compliance' %}active{% endif %}" href="{% url 'my_compliance' %}">
                   My Compliance
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if url_name == 'my_holidays' %}active{% endif %}" href="{% url 'shifts:my_holidays' %}">
+                  My Holidays
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if url_name == 'my_availability' %}active{% endif %}" href="{% url 'shifts:my_availability' %}">
+                  My Availability
                 </a>
               </li>
               {% endif %}

@@ -2,12 +2,113 @@
 {% block title %}Home{% endblock %}
 {% block content %}
   <div class="container py-5">
-    <h2 class="mb-3">Welcome</h2>
-    <p class="text-muted">This is your home page.</p>
-    {% if request.user.is_staff %}
-      <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">Go to Admin Dashboard</a>
-    {% else %}
-      <a href="{% url 'available_shifts' %}" class="btn btn-primary">Find Available Shifts</a>
-    {% endif %}
+    <div class="row">
+      <div class="col-lg-8 mx-auto text-center">
+        <h1 class="mb-3">Welcome to Schedulo</h1>
+        <p class="text-muted mb-4">Manage your shifts, track holidays, and stay organized.</p>
+        
+        {% if request.user.is_staff %}
+          <!-- Admin/Staff Dashboard -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="card h-100">
+                <div class="card-body text-center">
+                  <i class="fas fa-chart-line fa-2x text-primary mb-3"></i>
+                  <h5>Admin Dashboard</h5>
+                  <p class="text-muted small">Manage shifts, users, and reports</p>
+                  <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">Dashboard</a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card h-100">
+                <div class="card-body text-center">
+                  <i class="fas fa-calendar-check fa-2x text-success mb-3"></i>
+                  <h5>Holiday Management</h5>
+                  <p class="text-muted small">Review holiday requests and manage availability</p>
+                  <a href="{% url 'shifts:admin_holiday_dashboard' %}" class="btn btn-success">Manage</a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card h-100">
+                <div class="card-body text-center">
+                  <i class="fas fa-users fa-2x text-info mb-3"></i>
+                  <h5>User Management</h5>
+                  <p class="text-muted small">Manage user accounts and permissions</p>
+                  <a href="{% url 'admin_user_list' %}" class="btn btn-info">Users</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <!-- Regular User Quick Actions -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="card h-100">
+                <div class="card-body text-center">
+                  <i class="fas fa-search fa-2x text-primary mb-3"></i>
+                  <h6>Find Shifts</h6>
+                  <a href="{% url 'available_shifts' %}" class="btn btn-primary btn-sm">Browse</a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card h-100">
+                <div class="card-body text-center">
+                  <i class="fas fa-calendar fa-2x text-success mb-3"></i>
+                  <h6>My Bookings</h6>
+                  <a href="{% url 'my_bookings' %}" class="btn btn-success btn-sm">View</a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card h-100">
+                <div class="card-body text-center">
+                  <i class="fas fa-calendar-plus fa-2x text-warning mb-3"></i>
+                  <h6>Request Holiday</h6>
+                  <a href="{% url 'shifts:request_holiday' %}" class="btn btn-warning btn-sm">Request</a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card h-100">
+                <div class="card-body text-center">
+                  <i class="fas fa-clock fa-2x text-info mb-3"></i>
+                  <h6>My Availability</h6>
+                  <a href="{% url 'shifts:my_availability' %}" class="btn btn-info btn-sm">Manage</a>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Secondary Actions -->
+          <div class="d-flex gap-2 justify-content-center flex-wrap">
+            <a href="{% url 'shifts:my_holidays' %}" class="btn btn-outline-secondary btn-sm">
+              <i class="fas fa-list me-1"></i>My Holidays
+            </a>
+            <a href="{% url 'my_calendar' %}" class="btn btn-outline-secondary btn-sm">
+              <i class="fas fa-calendar-alt me-1"></i>Calendar
+            </a>
+            <a href="{% url 'my_compliance' %}" class="btn btn-outline-secondary btn-sm">
+              <i class="fas fa-file-check me-1"></i>Compliance
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
   </div>
+
+<style>
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+.fa-2x {
+  font-size: 2rem;
+}
+</style>
 {% endblock %}
