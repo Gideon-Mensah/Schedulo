@@ -99,6 +99,7 @@ class ShiftBooking(TenantOwned):
     
     admin_note = models.TextField(blank=True, null=True)
     
+    all_objects = models.Manager()     # unfiltered (for admin, debugging)
     objects = TenantManager()
     
     @property

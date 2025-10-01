@@ -1698,6 +1698,82 @@ def add_availability(request):
     return render(request, "shifts/add_availability.html", {"form": form})
 
 
+@login_required
+def edit_availability(request, availability_id):
+    """User can edit their own availability"""
+    from .forms import UserAvailabilityForm
+    from .models import UserAvailability
+    
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    availability = get_object_or_404(
+        UserAvailability.objects.select_related('user'), 
+        id=availability_id, 
+        user=request.user, 
+        organization=tenant
+    )
+
+    if request.method == 'POST':
+        form = UserAvailabilityForm(request.POST, instance=availability)
+        if form.is_valid():
+            availability = form.save(commit=False)
+            availability.user = request.user
+            availability.organization = tenant
+            availability.save()
+            
+            log_audit(
+                actor=request.user,
+                subject=request.user,
+                action=AuditAction.NOTES_UPDATED,
+                message=f"Updated availability: {availability.get_availability_type_display()} on {availability.date}"
+            )
+            
+            messages.success(request, "Availability updated successfully.")
+            return redirect("shifts:my_availability")
+        else:
+            messages.error(request, "Please fix the errors below.")
+    else:
+        form = UserAvailabilityForm(instance=availability)
+
+    return render(request, "shifts/edit_availability.html", {"form": form, "availability": availability})
+
+
+@login_required
+def delete_availability(request, availability_id):
+    """User can delete their own availability"""
+    from .models import UserAvailability
+    
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    availability = get_object_or_404(
+        UserAvailability.objects.select_related('user'), 
+        id=availability_id, 
+        user=request.user, 
+        organization=tenant
+    )
+
+    if request.method == 'POST':
+        log_audit(
+            actor=request.user,
+            subject=request.user,
+            action=AuditAction.BOOKING_CANCELLED,
+            message=f"Deleted availability: {availability.get_availability_type_display()} on {availability.date}"
+        )
+        
+        availability.delete()
+        messages.success(request, "Availability deleted successfully.")
+        return redirect("shifts:my_availability")
+
+    messages.error(request, "Invalid request method.")
+    return redirect("shifts:my_availability")
+
+
 # ---------- Holiday Request Views ----------
 @login_required
 def my_holidays(request):
@@ -2021,3 +2097,120 @@ def admin_add_holiday_request(request):
     users = User.objects.filter(profile__organization=tenant).order_by('username')
     
     return render(request, "admin/add_holiday_request.html", {"form": form, "users": users})
+
+
+@login_required
+def cancel_holiday_request(request, request_id):
+    """User can cancel their own holiday request"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    holiday_request = get_object_or_404(
+        HolidayRequest.objects.select_related('user'), 
+        id=request_id, 
+        user=request.user, 
+        organization=tenant
+    )
+
+    if holiday_request.status != 'pending':
+        messages.error(request, "Only pending holiday requests can be cancelled.")
+        return redirect("shifts:my_holidays")
+
+    if request.method == 'POST':
+        holiday_request.status = 'cancelled'
+        holiday_request.save()
+        
+        log_audit(
+            actor=request.user,
+            subject=request.user,
+            action=AuditAction.BOOKING_CANCELLED,
+            message=f"User cancelled holiday request: {holiday_request.reason} from {holiday_request.start_date} to {holiday_request.end_date}"
+        )
+        
+        messages.success(request, "Holiday request cancelled successfully.")
+        return redirect("shifts:my_holidays")
+
+    messages.error(request, "Invalid request method.")
+    return redirect("shifts:my_holidays")
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_holiday_request(request, request_id):
+    """Admin approve holiday request"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    holiday_request = get_object_or_404(
+        HolidayRequest.all_objects.select_related('user'), 
+        id=request_id, 
+        organization=tenant
+    )
+
+    if request.method == 'POST':
+        admin_notes = request.POST.get('admin_notes', '')
+        
+        holiday_request.status = 'approved'
+        holiday_request.reviewed_by = request.user
+        holiday_request.reviewed_at = timezone.now()
+        holiday_request.admin_notes = admin_notes
+        holiday_request.save()
+        
+        log_audit(
+            actor=request.user,
+            subject=holiday_request.user,
+            action=AuditAction.BOOKING_CREATED,
+            message=f"Admin approved holiday request for {holiday_request.user.username}: {holiday_request.reason} from {holiday_request.start_date} to {holiday_request.end_date}"
+        )
+        
+        messages.success(request, f"Holiday request approved for {holiday_request.user.username}.")
+        return redirect("shifts:admin_holiday_requests")
+
+    messages.error(request, "Invalid request method.")
+    return redirect("shifts:admin_holiday_requests")
+
+
+@login_required
+@user_passes_test(is_admin)
+def reject_holiday_request(request, request_id):
+    """Admin reject holiday request"""
+    tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    holiday_request = get_object_or_404(
+        HolidayRequest.all_objects.select_related('user'), 
+        id=request_id, 
+        organization=tenant
+    )
+
+    if request.method == 'POST':
+        admin_notes = request.POST.get('admin_notes', '')
+        
+        if not admin_notes:
+            messages.error(request, "Please provide a reason for rejection.")
+            return redirect("shifts:admin_holiday_requests")
+        
+        holiday_request.status = 'rejected'
+        holiday_request.reviewed_by = request.user
+        holiday_request.reviewed_at = timezone.now()
+        holiday_request.admin_notes = admin_notes
+        holiday_request.save()
+        
+        log_audit(
+            actor=request.user,
+            subject=holiday_request.user,
+            action=AuditAction.BOOKING_CANCELLED,
+            message=f"Admin rejected holiday request for {holiday_request.user.username}: {holiday_request.reason} from {holiday_request.start_date} to {holiday_request.end_date}. Reason: {admin_notes}"
+        )
+        
+        messages.success(request, f"Holiday request rejected for {holiday_request.user.username}.")
+        return redirect("shifts:admin_holiday_requests")
+
+    messages.error(request, "Invalid request method.")
+    return redirect("shifts:admin_holiday_requests")
