@@ -165,7 +165,7 @@ def list_shifts(request):
     )
 
     shifts = (
-        Shift._base_manager
+        Shift.all_objects
         .filter(future_q, organization=tenant)
         .annotate(booked_count=Count("bookings"))
         .order_by("date", "start_time")
@@ -214,14 +214,14 @@ def available_shifts(request):
 
     # shifts the user has already booked (org-scoped explicitly)
     booked_shift_ids = (
-        ShiftBooking._base_manager
+        ShiftBooking.all_objects
         .filter(user=request.user, organization=tenant)
         .values_list("shift_id", flat=True)
     )
 
     # available shifts = org-scoped upcoming, not already booked, not full
     shifts = (
-        Shift._base_manager
+        Shift.all_objects
         .filter(future_q, organization=tenant)
         .exclude(id__in=booked_shift_ids)
         .annotate(booked_total=Count("bookings", distinct=True))
@@ -284,7 +284,7 @@ def my_bookings(request):
     needs_clock_out_q = Q(clock_in_at__isnull=False, clock_out_at__isnull=True)
 
     bookings = (
-        ShiftBooking._base_manager
+        ShiftBooking.all_objects
         .select_related("shift")
         .filter(user=request.user, organization=tenant)
         # Hide COMPLETED ones
@@ -328,7 +328,7 @@ def completed_shifts(request):
         return redirect("home")
 
     bookings = (
-        ShiftBooking._base_manager
+        ShiftBooking.all_objects
         .select_related("shift")
         .filter(
             user=request.user,
@@ -350,7 +350,7 @@ def past_shifts(request):
         return redirect("home")
 
     bookings = (
-        ShiftBooking._base_manager
+        ShiftBooking.all_objects
         .select_related("shift")
         .filter(
             user=request.user,
@@ -367,8 +367,8 @@ def past_shifts(request):
 
 @login_required
 def cancel_booking(request, booking_id):
-    # Use _base_manager to bypass tenant filtering, then manually check tenant
-    booking = get_object_or_404(ShiftBooking._base_manager, id=booking_id, user=request.user)
+    # Use all_objects to bypass tenant filtering, then manually check tenant
+    booking = get_object_or_404(ShiftBooking.all_objects, id=booking_id, user=request.user)
     
     # Verify the booking belongs to the user's organization
     tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
@@ -439,7 +439,7 @@ def my_calendar(request):
 
     # Get all bookings for the month
     bookings = (
-        ShiftBooking._base_manager
+        ShiftBooking.all_objects
         .select_related("shift")
         .filter(
             user=request.user,
@@ -452,7 +452,7 @@ def my_calendar(request):
 
     # Get availability for the month
     availability = (
-        UserAvailability._base_manager
+        UserAvailability.all_objects
         .filter(
             user=request.user,
             organization=tenant,
@@ -464,7 +464,7 @@ def my_calendar(request):
 
     # Get holiday requests for the month
     holidays = (
-        HolidayRequest._base_manager
+        HolidayRequest.all_objects
         .filter(
             user=request.user,
             organization=tenant,
@@ -633,8 +633,8 @@ def _save_signature_from_dataurl(data_url: str, filename_prefix: str = "signatur
 @login_required
 def clock_in(request, booking_id):
     try:
-        # Use _base_manager to bypass tenant filtering, then manually check tenant
-        booking = get_object_or_404(ShiftBooking._base_manager, id=booking_id, user=request.user)
+        # Use all_objects to bypass tenant filtering, then manually check tenant
+        booking = get_object_or_404(ShiftBooking.all_objects, id=booking_id, user=request.user)
         
         # Verify the booking belongs to the user's organization
         tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
@@ -698,8 +698,8 @@ def clock_in(request, booking_id):
 @login_required
 def clock_out(request, booking_id):
     try:
-        # Use _base_manager to bypass tenant filtering, then manually check tenant
-        booking = get_object_or_404(ShiftBooking._base_manager, id=booking_id, user=request.user)
+        # Use all_objects to bypass tenant filtering, then manually check tenant
+        booking = get_object_or_404(ShiftBooking.all_objects, id=booking_id, user=request.user)
         
         # Verify the booking belongs to the user's organization
         tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
@@ -817,7 +817,7 @@ def attendance_report(request):
 
     # ---- base queryset (org + date range) ----
     qs = (
-        ShiftBooking._base_manager  # bypass any implicit tenant filtering
+        ShiftBooking.all_objects  # bypass any implicit tenant filtering
         .select_related("user", "shift")
         .filter(organization=tenant)
         .filter(shift__date__gte=start, shift__date__lte=end)
@@ -1013,13 +1013,13 @@ def admin_dashboard(request):
     )
 
     # ---- KPIs (all org-scoped) ----
-    total_shifts = Shift._base_manager.filter(organization=tenant).count()
-    total_bookings = ShiftBooking._base_manager.filter(organization=tenant).count()
+    total_shifts = Shift.all_objects.filter(organization=tenant).count()
+    total_bookings = ShiftBooking.all_objects.filter(organization=tenant).count()
     total_users = get_user_model().objects.filter(profile__organization=tenant).count()
 
     # available shifts = upcoming AND not full
     available_shifts = (
-        Shift._base_manager
+        Shift.all_objects
         .filter(future_q, organization=tenant)
         .annotate(booked_total=Count("bookings"))
         .filter(booked_total__lt=F("max_staff"))
@@ -1028,14 +1028,14 @@ def admin_dashboard(request):
 
     # today's shifts (any with date=today)
     todays_shifts = (
-        Shift._base_manager
+        Shift.all_objects
         .filter(organization=tenant, date=today)
         .count()
     )
 
     # ---- Upcoming table (org-scoped) ----
     upcoming_shifts = (
-        Shift._base_manager
+        Shift.all_objects
         .filter(future_q, organization=tenant)
         .annotate(booked_count=Count("bookings"))
         .order_by("date", "start_time")[:10]
@@ -1157,7 +1157,7 @@ def admin_manage_shifts(request):
 
     # shifts list (org-scoped)
     shifts_qs = (
-        Shift._base_manager  # bypass TenantManager to avoid any hidden filters
+        Shift.all_objects  # bypass TenantManager to avoid any hidden filters
         .filter(future_q, organization=tenant)
         .annotate(booked_total=Count("bookings"))
         .order_by("date", "start_time", "title")
@@ -1196,16 +1196,16 @@ def admin_manage_shifts(request):
         sh.user_rows = [(u, user_is_compliant_for_role(u, sh.role)) for u in users]
 
     # ---- metrics (ALL org-scoped so they match the list) ----
-    total_shifts = Shift._base_manager.filter(organization=tenant).count()
+    total_shifts = Shift.all_objects.filter(organization=tenant).count()
     total_users  = User.objects.filter(profile__organization=tenant).count()
     available_upcoming = (
-        Shift._base_manager.filter(future_q, organization=tenant)
+        Shift.all_objects.filter(future_q, organization=tenant)
         .annotate(c=Count("bookings"))
         .filter(c__lt=F("max_staff"))
         .count()
     )
     booked_upcoming = (
-        Shift._base_manager.filter(future_q, organization=tenant)
+        Shift.all_objects.filter(future_q, organization=tenant)
         .annotate(c=Count("bookings"))
         .filter(c__gt=0)
         .count()
@@ -1213,7 +1213,7 @@ def admin_manage_shifts(request):
 
     # recent bookings (org-scoped)
     recent_bookings = (
-        ShiftBooking._base_manager
+        ShiftBooking.all_objects
         .select_related("user", "shift")
         .filter(organization=tenant)
         .order_by("-id")[:50]
@@ -1266,7 +1266,7 @@ def admin_paid_bookings(request):
         start, end = default_start, today
 
     qs = (
-        ShiftBooking._base_manager                # bypass any tenant manager
+        ShiftBooking.all_objects                # bypass any tenant manager
         .select_related("user", "shift")
         .filter(organization=tenant)             # scope to active org
         .filter(paid_at__isnull=False)
@@ -1356,7 +1356,7 @@ def admin_paid_bookings(request):
 @user_passes_test(is_admin)
 def admin_mark_paid(request, booking_id):
     tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
-    b = get_object_or_404(ShiftBooking._base_manager, pk=booking_id, organization=tenant)
+    b = get_object_or_404(ShiftBooking.all_objects, pk=booking_id, organization=tenant)
     if not b.paid_at:
         b.paid_at = timezone.now()
         b.save(update_fields=["paid_at"])
@@ -1368,7 +1368,7 @@ def admin_mark_paid(request, booking_id):
 @user_passes_test(is_admin)
 def admin_unmark_paid(request, booking_id):
     tenant = getattr(request, "tenant", None) or getattr(getattr(request.user, "profile", None), "organization", None)
-    b = get_object_or_404(ShiftBooking._base_manager, pk=booking_id, organization=tenant)
+    b = get_object_or_404(ShiftBooking.all_objects, pk=booking_id, organization=tenant)
     if b.paid_at:
         b.paid_at = None
         b.save(update_fields=["paid_at"])
@@ -1386,7 +1386,7 @@ def my_paid_shifts(request):
         return redirect("home")
 
     bookings = (
-        ShiftBooking._base_manager
+        ShiftBooking.all_objects
         .select_related("shift")
         .filter(user=request.user, organization=tenant, paid_at__isnull=False)
         .order_by("-paid_at", "-id")
@@ -1463,7 +1463,7 @@ def admin_cancel_booking_admin(request, booking_id):
     POST to cancel a booking by id.
     """
     org = _active_tenant(request)
-    booking = get_object_or_404(ShiftBooking._base_manager, pk=booking_id, organization=org)
+    booking = get_object_or_404(ShiftBooking.all_objects, pk=booking_id, organization=org)
     title = booking.shift.title
     username = booking.user.get_username()
     booking.delete()
@@ -1486,7 +1486,7 @@ def admin_clock_in_for_user(request, booking_id):
 
     org = _active_tenant(request)
 
-    qs = ShiftBooking._base_manager.select_related("shift", "user")
+    qs = ShiftBooking.all_objects.select_related("shift", "user")
     if org:
         qs = qs.filter(organization=org)   # only scope when known
 
@@ -1530,7 +1530,7 @@ def admin_clock_out_for_user(request, booking_id):
 
     org = _active_tenant(request)
 
-    qs = ShiftBooking._base_manager.select_related("shift", "user")
+    qs = ShiftBooking.all_objects.select_related("shift", "user")
     if org:
         qs = qs.filter(organization=org)
 
@@ -1567,10 +1567,10 @@ def admin_clock_out_for_user(request, booking_id):
 @user_passes_test(is_admin)
 def admin_mark_booking_paid(request, booking_id):
     org = _active_tenant(request)
-    # Use _base_manager to bypass any implicit tenant filtering,
+    # Use all_objects to bypass any implicit tenant filtering,
     # then explicitly scope to the active org.
     booking = get_object_or_404(
-        ShiftBooking._base_manager,
+        ShiftBooking.all_objects,
         id=booking_id,
         organization=org,
     )
@@ -1657,7 +1657,7 @@ def my_availability(request):
         return redirect("home")
 
     availability = (
-        UserAvailability._base_manager
+        UserAvailability.all_objects
         .filter(user=request.user, organization=tenant)
         .order_by('date', 'start_time')
     )
@@ -1710,7 +1710,7 @@ def my_holidays(request):
         return redirect("home")
 
     holidays = (
-        HolidayRequest._base_manager
+        HolidayRequest.all_objects
         .filter(user=request.user, organization=tenant)
         .order_by('-created_at')
     )
@@ -1776,7 +1776,7 @@ def admin_holiday_requests(request):
     status_filter = request.GET.get('status', '')
     user_filter = request.GET.get('user', '')
     
-    holidays = HolidayRequest._base_manager.select_related('user').filter(organization=tenant)
+    holidays = HolidayRequest.all_objects.select_related('user').filter(organization=tenant)
     
     if status_filter:
         holidays = holidays.filter(status=status_filter)
@@ -1809,7 +1809,7 @@ def admin_user_availabilities(request):
     availability_type_filter = request.GET.get('availability_type', '')
     
     availabilities = (
-        UserAvailability._base_manager
+        UserAvailability.all_objects
         .select_related('user')
         .filter(organization=tenant)
         .order_by('-date', 'user__username', 'start_time')
@@ -1901,7 +1901,7 @@ def admin_delete_user_availability(request, availability_id):
         return redirect("home")
 
     availability = get_object_or_404(
-        UserAvailability._base_manager.select_related('user'), 
+        UserAvailability.all_objects.select_related('user'), 
         id=availability_id, 
         organization=tenant
     )
@@ -1935,13 +1935,13 @@ def admin_holiday_dashboard(request):
         return redirect("home")
 
     # Get statistics
-    pending_requests = HolidayRequest._base_manager.filter(organization=tenant, status='pending').count()
-    approved_requests = HolidayRequest._base_manager.filter(organization=tenant, status='approved').count()
+    pending_requests = HolidayRequest.all_objects.filter(organization=tenant, status='pending').count()
+    approved_requests = HolidayRequest.all_objects.filter(organization=tenant, status='approved').count()
     
     # Recent requests (last 30 days)
     thirty_days_ago = timezone.now().date() - timedelta(days=30)
     recent_requests = (
-        HolidayRequest._base_manager
+        HolidayRequest.all_objects
         .select_related('user')
         .filter(organization=tenant, created_at__date__gte=thirty_days_ago)
         .order_by('-created_at')[:10]
@@ -1950,7 +1950,7 @@ def admin_holiday_dashboard(request):
     # Upcoming approved holidays (next 30 days)
     thirty_days_ahead = timezone.now().date() + timedelta(days=30)
     upcoming_holidays = (
-        HolidayRequest._base_manager
+        HolidayRequest.all_objects
         .select_related('user')
         .filter(
             organization=tenant, 

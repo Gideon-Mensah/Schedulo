@@ -32,7 +32,6 @@ class Shift(TenantOwned):
     # 👇 managers
     all_objects = models.Manager()     # unfiltered (for admin, debugging)
     objects = TenantManager()          # tenant-scoped (for your app)
-    _base_manager = models.Manager()   # For explicit queries bypassing tenant filtering
 
     def __str__(self):
         st = self.start_time.strftime("%H:%M") if self.start_time else "--:--"
@@ -101,7 +100,6 @@ class ShiftBooking(TenantOwned):
     admin_note = models.TextField(blank=True, null=True)
     
     objects = TenantManager()
-    _base_manager = models.Manager()  # For explicit queries bypassing tenant filtering
     
     @property
     def is_completed(self) -> bool:
@@ -276,8 +274,8 @@ class UserAvailability(TenantOwned):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    all_objects = models.Manager()     # unfiltered (for admin, debugging)
     objects = TenantManager()
-    _base_manager = models.Manager()  # For explicit queries bypassing tenant filtering
     
     class Meta:
         unique_together = ('user', 'date', 'start_time', 'end_time')
@@ -332,8 +330,8 @@ class HolidayRequest(TenantOwned):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    all_objects = models.Manager()     # unfiltered (for admin, debugging)
     objects = TenantManager()
-    _base_manager = models.Manager()  # For explicit queries bypassing tenant filtering
     
     class Meta:
         ordering = ['-created_at']
