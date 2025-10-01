@@ -1202,7 +1202,12 @@ def admin_book_for_user(request):
         return redirect("admin_manage_shifts")
 
     # In admin_book_for_user, ensure organization is set
-    booking = ShiftBooking.objects.create(user=user, shift=shift, organization=shift.organization)
+    from django.db import IntegrityError
+    try:
+        booking = ShiftBooking.objects.create(user=user, shift=shift, organization=shift.organization)
+    except IntegrityError:
+        messages.info(request, f"{user} is already booked on '{shift.title}'.")
+        return redirect("admin_manage_shifts")
     note = f" (override: {reason})" if override and reason else (" (override)" if override else "")
     messages.success(request, f"Booked {user.get_username()} on '{shift.title}'.{note}")
     
