@@ -134,7 +134,15 @@ def create_shift(request):
 
 @user_passes_test(is_admin)
 def list_shifts(request):
-    shifts = Shift.objects.filter(organization=request.tenant).order_by("date", "start_time")
+    # ---- resolve active tenant/org ----
+    tenant = getattr(request, "tenant", None)
+    if tenant is None:
+        tenant = getattr(getattr(request.user, "profile", None), "organization", None)
+    if tenant is None:
+        messages.error(request, "No active workspace selected. Please select an organization.")
+        return redirect("home")
+
+    shifts = Shift._base_manager.filter(organization=tenant).order_by("date", "start_time")
     return render(request, "list_shifts.html", {"shifts": shifts})
 
 # ---------- Staff: Shifts & bookings ----------
