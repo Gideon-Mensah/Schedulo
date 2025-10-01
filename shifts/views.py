@@ -142,8 +142,41 @@ def list_shifts(request):
         messages.error(request, "No active workspace selected. Please select an organization.")
         return redirect("home")
 
-    shifts = Shift._base_manager.filter(organization=tenant).order_by("date", "start_time")
-    return render(request, "list_shifts.html", {"shifts": shifts})
+    # ---- filter for upcoming shifts only ----
+    now = timezone.localtime()
+    today = now.date()
+    current_time = now.time()
+    
+    # upcoming = strictly in future OR later today (not finished)
+    future_q = (
+        Q(date__gt=today) |
+        (Q(date=today) & (
+            Q(end_time__gt=current_time) |
+            Q(end_time__isnull=True, start_time__gt=current_time) |
+            Q(start_time__isnull=True, end_time__isnull=True)
+        ))
+    )
+
+    shifts = (
+        Shift._base_manager
+        .filter(future_q, organization=tenant)
+        .annotate(booked_count=Count("bookings"))
+        .order_by("date", "start_time")
+    )
+    
+    # Calculate statistics
+    total_shifts = shifts.count()
+    available_shifts = sum(1 for shift in shifts if shift.booked_count < shift.max_staff)
+    full_shifts = sum(1 for shift in shifts if shift.booked_count >= shift.max_staff)
+    
+    context = {
+        'shifts': shifts,
+        'total_shifts': total_shifts,
+        'available_shifts': available_shifts,
+        'full_shifts': full_shifts,
+    }
+    
+    return render(request, "list_shifts.html", context)
 
 # ---------- Staff: Shifts & bookings ----------
 @login_required
