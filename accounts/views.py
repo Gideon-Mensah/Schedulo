@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 
-from .forms import UserUpdateForm, ProfileForm
+from .forms import UserUpdateForm, ProfileForm, CustomPasswordResetForm
 from .models import Profile
 
 def register(request):
@@ -59,6 +59,20 @@ def profile_edit(request):
 class AccountPasswordChangeView(auth_views.PasswordChangeView):
     template_name = "accounts/password_change.html"
     success_url = reverse_lazy("account_password_change_done")
+    form_class = CustomPasswordResetForm
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # Remove 'user' from kwargs since SetPasswordForm expects it differently
+        if 'user' in kwargs:
+            kwargs.pop('user')
+        # SetPasswordForm expects the user as the first positional argument
+        return kwargs
+    
+    def get_form(self, form_class=None):
+        if form_class is None:
+            form_class = self.get_form_class()
+        return form_class(self.request.user, **self.get_form_kwargs())
 
 class AccountPasswordChangeDoneView(auth_views.PasswordChangeDoneView):
     template_name = "accounts/password_change_done.html"

@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, SetPasswordForm
 from .models import User
 
 class UserRegisterForm(UserCreationForm):
@@ -48,5 +48,23 @@ class ProfileForm(forms.ModelForm):
             "job_title": forms.TextInput(attrs={"class": "form-control"}),
             "bio": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
         }
+
+class CustomPasswordResetForm(SetPasswordForm):
+    """
+    Custom form that only requires new password and confirmation,
+    without asking for the old password
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add Bootstrap classes to the form fields
+        for field in self.fields.values():
+            field.widget.attrs.update({'class': 'form-control'})
+        
+        # Customize field labels and help text
+        self.fields['new_password1'].label = 'New Password'
+        self.fields['new_password2'].label = 'Confirm New Password'
+        self.fields['new_password1'].help_text = (
+            'Your password must contain at least 8 characters and cannot be entirely numeric.'
+        )
 
 
