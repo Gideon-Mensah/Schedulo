@@ -1852,21 +1852,39 @@ def admin_holiday_requests(request):
     status_filter = request.GET.get('status', '')
     user_filter = request.GET.get('user', '')
     
+    # Debug: Log the tenant and initial query
+    logger.debug(f"Admin holiday requests - Tenant: {tenant}, Status filter: {status_filter}")
+    
     holidays = HolidayRequest.all_objects.select_related('user').filter(organization=tenant)
+    
+    # Debug: Log the count before filtering
+    logger.debug(f"Total holiday requests for tenant {tenant}: {holidays.count()}")
     
     if status_filter:
         holidays = holidays.filter(status=status_filter)
+        logger.debug(f"After status filter '{status_filter}': {holidays.count()}")
     if user_filter:
         holidays = holidays.filter(user__username__icontains=user_filter)
+        logger.debug(f"After user filter '{user_filter}': {holidays.count()}")
     
     holidays = holidays.order_by('-created_at')
 
+    # Calculate statistics before final filtering for display
+    all_holidays = HolidayRequest.all_objects.filter(organization=tenant)
+    
     context = {
-        'holidays': holidays,
+        'holiday_requests': holidays,
+        'holidays': holidays,  # Keep both for compatibility
         'status_filter': status_filter,
         'user_filter': user_filter,
         'status_choices': HolidayRequest.STATUS_CHOICES,
+        'pending_count': all_holidays.filter(status='pending').count(),
+        'approved_count': all_holidays.filter(status='approved').count(),
+        'rejected_count': all_holidays.filter(status='rejected').count(),
+        'total_count': all_holidays.count(),
     }
+    
+    logger.debug(f"Final context counts - Pending: {context['pending_count']}, Total: {context['total_count']}")
     return render(request, "admin/holiday_requests.html", context)
 
 # ---------- Admin User Availability Management ----------
