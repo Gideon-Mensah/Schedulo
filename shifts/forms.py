@@ -133,12 +133,13 @@ class HolidayRequestForm(forms.ModelForm):
         if start_date and end_date and start_date > end_date:
             raise forms.ValidationError("Start date cannot be after end date")
         
-        # Ensure request is for future dates (except sick leave which can be backdated)
+        # Allow backdating for sick leave and emergency leave, but not for future dated requests
         holiday_type = cleaned_data.get('holiday_type')
-        if start_date and holiday_type != 'sick_leave':
+        if start_date and holiday_type not in ['sick_leave', 'emergency_leave']:
             from django.utils import timezone
-            if start_date < timezone.localdate():
-                raise forms.ValidationError("Holiday requests must be for future dates (except sick leave)")
+            today = timezone.localdate()
+            if start_date < today:
+                raise forms.ValidationError(f"Holiday requests must be for today ({today}) or future dates (except sick leave and emergency leave)")
         
         return cleaned_data
 
