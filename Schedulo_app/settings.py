@@ -31,20 +31,26 @@ SECRET_KEY = os.environ["SECRET_KEY"]
 
 DEBUG = os.environ.get("DEBUG", "0") == "1"
 
-# For multi-tenant SaaS, set your production domain here:
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
-# Add portal.delaala.co.uk to allowed hosts
-if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:
-    ALLOWED_HOSTS = ["portal.delaala.co.uk", "schedulo-dmib.onrender.com", "localhost", "127.0.0.1"]
-elif "portal.delaala.co.uk" not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append("portal.delaala.co.uk")
+# Allow your custom domain (and keep the Render URL if you still use it)
+ALLOWED_HOSTS = [
+    "portal.delaala.co.uk",
+    "schedulo-dmib.onrender.com",   # optional
+    "localhost",
+    "127.0.0.1",
+]
 
-# CSRF_TRUSTED_ORIGINS = ["https://yourapp.com", "https://*.yourapp.com"]
-CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get("CSRF_TRUSTED_ORIGINS","").split(",") if o]
-if not CSRF_TRUSTED_ORIGINS or CSRF_TRUSTED_ORIGINS == [""]:
-    CSRF_TRUSTED_ORIGINS = ["https://portal.delaala.co.uk", "https://schedulo-dmib.onrender.com"]
-elif "https://portal.delaala.co.uk" not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append("https://portal.delaala.co.uk")
+# If you're reading from an env var instead, do:
+# ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()]
+
+# CSRF (must include scheme)
+CSRF_TRUSTED_ORIGINS = [
+    "https://portal.delaala.co.uk",
+    "https://schedulo-dmib.onrender.com",  # optional
+]
+
+# Behind Render's proxy (helps with HTTPS and redirects)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 
 # Delaala Company Limited domain lock settings
 DELAALA_ORG_NAME = "Delaala Company Limited"
