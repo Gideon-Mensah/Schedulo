@@ -42,7 +42,7 @@
                         </div>
                     {% endif %}
 
-                    <form method="post" novalidate>
+                    <form method="post">
                         {% csrf_token %}
                         
                         <div class="row">
@@ -201,8 +201,31 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (startDateInput && endDateInput) {
         const today = new Date().toISOString().split('T')[0];
+        // Allow current date for holiday requests
         startDateInput.min = today;
         endDateInput.min = today;
+        
+        // Get holiday type field
+        const holidayTypeField = document.getElementById('{{ form.holiday_type.id_for_label }}');
+        
+        function updateDateLimits() {
+            const holidayType = holidayTypeField ? holidayTypeField.value : '';
+            if (holidayType === 'sick_leave' || holidayType === 'emergency_leave') {
+                // Allow backdating for sick leave and emergency leave
+                startDateInput.removeAttribute('min');
+                endDateInput.removeAttribute('min');
+            } else {
+                // Regular leaves must be current date or future
+                startDateInput.min = today;
+                endDateInput.min = today;
+            }
+        }
+        
+        // Update date limits when holiday type changes
+        if (holidayTypeField) {
+            holidayTypeField.addEventListener('change', updateDateLimits);
+            updateDateLimits(); // Set initial state
+        }
         
         function calculateDuration() {
             const startDate = new Date(startDateInput.value);
