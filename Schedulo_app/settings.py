@@ -33,10 +33,10 @@ DEBUG = os.environ.get("DEBUG", "0") == "1"
 
 # Allow your custom domain (and keep the Render URL if you still use it)
 ALLOWED_HOSTS = [
-    "portal.delaala.co.uk",
-    "schedulo-dmib.onrender.com",   # optional
-    "localhost",
-    "127.0.0.1",
+    "localhost", "127.0.0.1",
+    ".onrender.com",
+    "schedulo-dmib.onrender.com",
+    "portal.delaala.co.uk",          # <-- add this
 ]
 
 # If you're reading from an env var instead, do:
@@ -44,8 +44,9 @@ ALLOWED_HOSTS = [
 
 # CSRF (must include scheme)
 CSRF_TRUSTED_ORIGINS = [
-    "https://portal.delaala.co.uk",
-    "https://schedulo-dmib.onrender.com",  # optional
+    "https://*.onrender.com",
+    "https://schedulo-dmib.onrender.com",
+    "https://portal.delaala.co.uk",  # <-- add this
 ]
 
 # Behind Render's proxy (helps with HTTPS and redirects)
