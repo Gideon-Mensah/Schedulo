@@ -1,7 +1,37 @@
 # core/middleware.py
 import logging
+from django.conf import settings
+from django.shortcuts import redirect
+from django.contrib.auth import logout
 from core.models import Organization
 from core.org_context import org_context
+from .org_utils import user_org_name
+
+logger = logging.getLogger(__name__)
+ACTIVE_ORG_SESSION_KEY = "active_org_id"
+
+class DelaalaDomainOrgLockMiddleware:
+    """
+    Middleware to restrict portal.delaala.co.uk access to only Delaala Company Limited users.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        host = request.get_host().split(":")[0]
+
+        if host == getattr(settings, 'DELAALA_DOMAIN', ''):
+            if request.user.is_authenticated and not request.user.is_superuser:
+                org = (user_org_name(request.user) or "").strip().lower()
+                delaala_org = getattr(settings, 'DELAALA_ORG_NAME', '').lower()
+                
+                if org != delaala_org:
+                    logger.warning(f"User {request.user.username} with org '{org}' attempted to access Delaala domain")
+                    logout(request)
+                    # Redirect to login with error message
+                    return redirect("/accounts/login/?error=not_authorized")
+
+        return self.get_response(request)
 
 logger = logging.getLogger(__name__)
 ACTIVE_ORG_SESSION_KEY = "active_org_id"

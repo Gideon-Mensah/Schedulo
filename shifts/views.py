@@ -557,6 +557,18 @@ class NoCacheLoginView(LoginView):
     redirect_authenticated_user = True
 
     def get_success_url(self):
+        # Check if we're on the Delaala domain and user is not authorized
+        host = self.request.get_host().split(":")[0]
+        if host == getattr(settings, 'DELAALA_DOMAIN', '') and not self.request.user.is_superuser:
+            from core.org_utils import user_org_name
+            org = (user_org_name(self.request.user) or "").strip().lower()
+            delaala_org = getattr(settings, 'DELAALA_ORG_NAME', '').lower()
+            
+            if org != delaala_org:
+                from django.contrib.auth import logout
+                logout(self.request)
+                return reverse("login") + "?error=not_authorized"
+        
         return reverse("account_profile")
 
     def render_to_response(self, context, **response_kwargs):

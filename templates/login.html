@@ -44,6 +44,19 @@
         <form method="post" novalidate>
           {% csrf_token %}
 
+          {# Show domain lock error messages #}
+          {% if request.GET.error == 'not_authorized' %}
+            <div class="alert alert-warning py-2 mb-3">
+              <i class="fa fa-exclamation-triangle"></i>
+              Access to this portal is restricted to Delaala Company Limited users only.
+            </div>
+          {% elif request.GET.error == 'signup_disabled' %}
+            <div class="alert alert-info py-2 mb-3">
+              <i class="fa fa-info-circle"></i>
+              Registration is not available on this portal. Please contact your administrator.
+            </div>
+          {% endif %}
+
           {# Show only once — above all fields #}
           {% if form.non_field_errors %}
             <div class="alert alert-danger py-2 mb-3">

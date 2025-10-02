@@ -14,6 +14,13 @@ from .forms import UserUpdateForm, ProfileForm
 from .models import Profile
 
 def register(request):
+    # Block registration on Delaala domain
+    from django.conf import settings
+    host = request.get_host().split(":")[0]
+    if host == getattr(settings, 'DELAALA_DOMAIN', ''):
+        messages.error(request, 'Registration is not available on this portal. Please contact your administrator.')
+        return redirect('/accounts/login/?error=signup_disabled')
+    
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
         if form.is_valid():
