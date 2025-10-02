@@ -462,14 +462,15 @@ def my_calendar(request):
         .order_by("date", "start_time")
     )
 
-    # Get holiday requests for the month
+    # Get holiday requests for the month (only approved and pending)
     holidays = (
         HolidayRequest.all_objects
         .filter(
             user=request.user,
             organization=tenant,
             start_date__lte=last_day,
-            end_date__gte=first_day
+            end_date__gte=first_day,
+            status__in=['approved', 'pending']  # Exclude rejected and cancelled holidays
         )
         .order_by("start_date")
     )

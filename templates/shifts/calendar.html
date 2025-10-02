@@ -219,6 +219,11 @@
     border-left: 4px solid var(--warning);
   }
   
+  .calendar-day.holiday-pending {
+    background: linear-gradient(135deg, #fef3c7, #fde047);
+    border-left: 4px solid #eab308;
+  }
+  
   .holiday-indicator {
     background: var(--warning);
     color: #92400e;
@@ -230,6 +235,18 @@
     display: flex;
     align-items: center;
     gap: 4px;
+  }
+  
+  .holiday-indicator.holiday-pending {
+    background: #fef08a;
+    color: #a16207;
+    border: 1px solid #eab308;
+  }
+  
+  .holiday-indicator.holiday-approved {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #22c55e;
   }
   
   .availability-item {
@@ -466,15 +483,15 @@
         <div class="calendar-days">
             {% for week in calendar_weeks %}
                 {% for day_data in week %}
-                    <div class="calendar-day{% if day_data.is_today %} today{% endif %}{% if not day_data.day %} other-month{% endif %}{% if day_data.is_holiday %} holiday{% endif %}">
+                    <div class="calendar-day{% if day_data.is_today %} today{% endif %}{% if not day_data.day %} other-month{% endif %}{% if day_data.is_holiday %} holiday{% endif %}{% if day_data.holiday and day_data.holiday.status == 'pending' %} holiday-pending{% endif %}">
                         {% if day_data.day %}
                             <div class="day-number">{{ day_data.day }}</div>
                             
                             <!-- Holiday indicator -->
                             {% if day_data.holiday %}
-                                <div class="holiday-indicator" 
+                                <div class="holiday-indicator holiday-{{ day_data.holiday.status }}" 
                                      title="Holiday: {{ day_data.holiday.reason }} ({{ day_data.holiday.get_status_display }})">
-                                    🏖️ {{ day_data.holiday.reason|truncatechars:15 }}
+                                    {% if day_data.holiday.status == 'pending' %}🟡{% elif day_data.holiday.status == 'approved' %}🏖️{% endif %} {{ day_data.holiday.reason|truncatechars:15 }}
                                 </div>
                             {% endif %}
                             
