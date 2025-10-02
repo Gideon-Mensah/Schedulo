@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const userName = this.getAttribute('data-user');
             
             document.getElementById('approve-user-name').textContent = userName;
-            document.getElementById('approveForm').action = `/shifts/admin/holidays/${requestId}/approve/`;
+            document.getElementById('approveForm').action = `{% url 'shifts:approve_holiday_request' 0 %}`.replace('0', requestId);
             
             new bootstrap.Modal(document.getElementById('approveModal')).show();
         });
@@ -359,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const userName = this.getAttribute('data-user');
             
             document.getElementById('reject-user-name').textContent = userName;
-            document.getElementById('rejectForm').action = `/shifts/admin/holidays/${requestId}/reject/`;
+            document.getElementById('rejectForm').action = `{% url 'shifts:reject_holiday_request' 0 %}`.replace('0', requestId);
             
             new bootstrap.Modal(document.getElementById('rejectModal')).show();
         });
