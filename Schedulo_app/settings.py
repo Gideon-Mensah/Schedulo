@@ -9,7 +9,8 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values# Fallback/default "from"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Schedulo <no-reply@yourdomain.com>")
 
-# Remove duplicate section - using the configuration at the top of the filedja# Remove duplicate section - using the configuration at the top of the filen/5.2/ref/settings/
+# Remove duplicate section - using the configuration at the top of the filesee
+https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
@@ -254,12 +255,12 @@ EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Schedulo <no-reply@yourdomain.com>")
 
 # settings.py
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    ".onrender.com",            # wildcard for any *.onrender.com app
-    "schedulo-dmib.onrender.com"  # your exact hostname (belt & braces)
-]
+# ALLOWED_HOSTS = [
+#     "localhost",
+#     "127.0.0.1",
+#     ".onrender.com",            # wildcard for any *.onrender.com app
+#     "schedulo-dmib.onrender.com"  # your exact hostname (belt & braces)
+# ]
 
 # Django 4+ + HTTPS behind a proxy (Render):
 CSRF_TRUSTED_ORIGINS = [
