@@ -1723,7 +1723,7 @@ def edit_availability(request, availability_id):
         return redirect("home")
 
     availability = get_object_or_404(
-        UserAvailability.objects.select_related('user'), 
+        UserAvailability.all_objects.select_related('user'), 
         id=availability_id, 
         user=request.user, 
         organization=tenant
@@ -1764,12 +1764,30 @@ def delete_availability(request, availability_id):
         messages.error(request, "No active workspace selected. Please select an organization.")
         return redirect("home")
 
-    availability = get_object_or_404(
-        UserAvailability.objects.select_related('user'), 
-        id=availability_id, 
-        user=request.user, 
-        organization=tenant
-    )
+    try:
+        # First, let's check if the availability exists at all
+        availability_exists = UserAvailability.all_objects.filter(id=availability_id).exists()
+        if not availability_exists:
+            messages.error(request, f"Availability with ID {availability_id} does not exist.")
+            return redirect("shifts:my_availability")
+        
+        # Check if it belongs to the current user
+        user_availability = UserAvailability.all_objects.filter(id=availability_id, user=request.user).first()
+        if not user_availability:
+            messages.error(request, "You can only delete your own availability records.")
+            return redirect("shifts:my_availability")
+        
+        # Check if it belongs to the current organization
+        availability = get_object_or_404(
+            UserAvailability.all_objects.select_related('user'), 
+            id=availability_id, 
+            user=request.user, 
+            organization=tenant
+        )
+        
+    except UserAvailability.DoesNotExist:
+        messages.error(request, "Availability record not found or you don't have permission to delete it.")
+        return redirect("shifts:my_availability")
 
     if request.method == 'POST':
         log_audit(
