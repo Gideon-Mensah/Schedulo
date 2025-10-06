@@ -146,10 +146,11 @@ class IDCardCreateView(CreateView):
         form = super().get_form(form_class)
         org = getattr(self.request, 'tenant', None)
         if org:
-            # Only show users who are members of this organization
+            # Use the same user filtering as shift booking system
+            # This filters users by profile.organization instead of org_memberships
             queryset = User.objects.filter(
-                org_memberships__organization=org
-            ).distinct()
+                profile__organization=org
+            ).order_by('first_name', 'last_name')
             form.fields['user'].queryset = queryset
             
             # Add some debugging info in development

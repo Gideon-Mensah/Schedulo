@@ -10,6 +10,10 @@ from shifts.views import NoCacheLoginView
 from shifts.views_audit import audit_log
 from accounts import views as accounts_views
 
+# Debug import (remove in production)
+if settings.DEBUG:
+    from debug_views import debug_id_card_form
+
 urlpatterns = [
     # Include shifts app (namespaced) — must be BEFORE admin.site.urls
     path("", include(("shifts.urls", "shifts"), namespace="shifts")),
@@ -68,6 +72,10 @@ urlpatterns = [
     # Django admin — keep LAST
     path("admin/", admin.site.urls),
 ]
+
+# Add debug URL only in DEBUG mode
+if settings.DEBUG:
+    urlpatterns.append(path("debug/id-card-form/", debug_id_card_form, name="debug_id_card_form"))
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

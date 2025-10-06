@@ -1,0 +1,73 @@
+<!-- Debug template for ID card form testing -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ID Card Form Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+        ul { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>ID Card Form Debug Information</h1>
+    
+    <div class="section">
+        <h2>Request Information</h2>
+        <ul>
+            <li><strong>Current User:</strong> {{ request_user.username }} ({{ request_user.first_name }} {{ request_user.last_name }})</li>
+            <li><strong>Is Staff:</strong> {{ is_staff }}</li>
+            <li><strong>Is Superuser:</strong> {{ is_superuser }}</li>
+            <li><strong>Tenant Organization:</strong> {{ tenant_org_name }}</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Organization Context</h2>
+        {% if tenant_org %}
+            <p class="success">✅ Tenant organization found: {{ tenant_org.name }}</p>
+        {% else %}
+            <p class="error">❌ No tenant organization set</p>
+            {% if error %}
+                <p class="error">Error: {{ error }}</p>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2>Available Users for ID Cards</h2>
+        <p><strong>Count:</strong> {{ user_count }}</p>
+        
+        {% if user_count > 0 %}
+            <p class="success">✅ Users that would appear in dropdown:</p>
+            <ul>
+            {% for user in available_users %}
+                <li>{{ user.first_name }} {{ user.last_name }} ({{ user.username }}) - {{ user.email }}</li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p class="error">❌ No users would appear in the dropdown</p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2>All Organizations</h2>
+        <ul>
+        {% for org in all_orgs %}
+            <li>{{ org.name }} (ID: {{ org.id }})</li>
+        {% endfor %}
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Quick Actions</h2>
+        <ul>
+            <li><a href="/accounts/id-cards/">Go to ID Card List</a></li>
+            <li><a href="/accounts/id-cards/create/">Go to Create ID Card</a></li>
+            <li><a href="/admin/">Go to Admin</a></li>
+        </ul>
+    </div>
+</body>
+</html>
