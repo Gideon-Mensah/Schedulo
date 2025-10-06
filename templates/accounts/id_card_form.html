@@ -5,158 +5,240 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid py-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
     <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-header {% if object %}bg-warning text-dark{% else %}bg-primary text-white{% endif %}">
-                    <h4 class="mb-0">
-                        <i class="fa fa-{% if object %}edit{% else %}plus{% endif %} me-2"></i>
-                        {% if object %}Edit ID Card{% else %}Create New ID Card{% endif %}
-                    </h4>
+        <div class="col-xl-8 col-lg-10">
+            <!-- Header Section -->
+            <div class="text-center mb-4">
+                <div class="d-inline-flex align-items-center justify-content-center bg-white rounded-circle shadow-lg" style="width: 80px; height: 80px; margin-bottom: 1rem;">
+                    <i class="fas fa-{% if object %}edit{% else %}id-card{% endif %} text-primary" style="font-size: 2rem;"></i>
                 </div>
-                <div class="card-body">
+                <h2 class="text-white fw-bold mb-2">
+                    {% if object %}Edit ID Card{% else %}Create New ID Card{% endif %}
+                </h2>
+                <p class="text-white-50 mb-0">
+                    {% if object %}Update existing employee identification card{% else %}Generate a new employee identification card{% endif %}
+                </p>
+            </div>
+
+            <div class="card border-0 shadow-lg" style="border-radius: 20px; backdrop-filter: blur(10px);">
+                <div class="card-body p-5">
+                <div class="card-body p-5">
+                    <!-- Messages -->
                     {% if messages %}
                         {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show border-0 shadow-sm" role="alert" style="border-radius: 15px;">
+                                <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
                                 {{ message }}
                                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
                         {% endfor %}
                     {% endif %}
 
+                    <!-- Edit Info Alert -->
                     {% if object %}
-                        <div class="alert alert-info mb-4">
-                            <i class="fa fa-info-circle"></i>
-                            <strong>Editing ID Card for:</strong> {{ object.full_name }} ({{ object.employee_id }})
+                        <div class="alert alert-info border-0 shadow-sm mb-4" style="border-radius: 15px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                    <i class="fas fa-user text-white"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 fw-bold text-primary">Editing ID Card</h6>
+                                    <p class="mb-0 text-muted">{{ object.full_name }} • Employee ID: {{ object.employee_id }}</p>
+                                </div>
+                            </div>
                         </div>
                     {% endif %}
 
-                    <form method="post" novalidate>
+                    <form method="post" novalidate class="modern-form">
                         {% csrf_token %}
                         
                         {% if not object %}
-                        <div class="row">
-                            <div class="col-md-12 mb-3">
-                                <label for="{{ form.user.id_for_label }}" class="form-label">
-                                    Employee <span class="text-danger">*</span>
-                                </label>
+                        <!-- Employee Selection Section -->
+                        <div class="form-section mb-5">
+                            <div class="section-header mb-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="section-icon me-3">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="mb-1 fw-bold text-dark">Employee Selection</h5>
+                                        <p class="mb-0 text-muted small">Choose the employee for this ID card</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-floating mb-3">
                                 {{ form.user }}
+                                <label for="{{ form.user.id_for_label }}" class="form-label">
+                                    <i class="fas fa-user me-2"></i>Employee <span class="text-danger">*</span>
+                                </label>
                                 {% if form.user.errors %}
                                     <div class="invalid-feedback d-block">
+                                        <i class="fas fa-exclamation-circle me-1"></i>
                                         {% for error in form.user.errors %}
                                             {{ error }}
                                         {% endfor %}
                                     </div>
                                 {% endif %}
-                                <div class="form-text">
-                                    Select the employee for whom this ID card will be created.
-                                </div>
                             </div>
                         </div>
                         {% endif %}
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.department.id_for_label }}" class="form-label">
-                                    Department
-                                </label>
-                                {{ form.department }}
-                                {% if form.department.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.department.errors %}
-                                            {{ error }}
-                                        {% endfor %}
+                        <!-- Basic Information Section -->
+                        <div class="form-section mb-5">
+                            <div class="section-header mb-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="section-icon me-3">
+                                        <i class="fas fa-building"></i>
                                     </div>
-                                {% endif %}
+                                    <div>
+                                        <h5 class="mb-1 fw-bold text-dark">Basic Information</h5>
+                                        <p class="mb-0 text-muted small">Department and access level details</p>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.access_level.id_for_label }}" class="form-label">
-                                    Access Level
-                                </label>
-                                {{ form.access_level }}
-                                {% if form.access_level.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.access_level.errors %}
-                                            {{ error }}
-                                        {% endfor %}
+
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="form-floating">
+                                        {{ form.department }}
+                                        <label for="{{ form.department.id_for_label }}" class="form-label">
+                                            <i class="fas fa-building me-2"></i>Department
+                                        </label>
+                                        {% if form.department.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                <i class="fas fa-exclamation-circle me-1"></i>
+                                                {% for error in form.department.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
                                     </div>
-                                {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-floating">
+                                        {{ form.access_level }}
+                                        <label for="{{ form.access_level.id_for_label }}" class="form-label">
+                                            <i class="fas fa-key me-2"></i>Access Level
+                                        </label>
+                                        {% if form.access_level.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                <i class="fas fa-exclamation-circle me-1"></i>
+                                                {% for error in form.access_level.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.expiry_date.id_for_label }}" class="form-label">
-                                    Expiry Date
-                                </label>
-                                {{ form.expiry_date }}
-                                {% if form.expiry_date.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.expiry_date.errors %}
-                                            {{ error }}
-                                        {% endfor %}
+                        <!-- Validity & Emergency Section -->
+                        <div class="form-section mb-5">
+                            <div class="section-header mb-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="section-icon me-3">
+                                        <i class="fas fa-calendar-alt"></i>
                                     </div>
-                                {% endif %}
-                                <div class="form-text">
-                                    Leave blank for no expiry date.
+                                    <div>
+                                        <h5 class="mb-1 fw-bold text-dark">Validity & Emergency Contact</h5>
+                                        <p class="mb-0 text-muted small">Expiry date and emergency contact information</p>
+                                    </div>
                                 </div>
                             </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.emergency_contact_name.id_for_label }}" class="form-label">
-                                    Emergency Contact Name
-                                </label>
-                                {{ form.emergency_contact_name }}
-                                {% if form.emergency_contact_name.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.emergency_contact_name.errors %}
-                                            {{ error }}
-                                        {% endfor %}
+                            <div class="row g-4">
+                                <div class="col-md-4">
+                                    <div class="form-floating">
+                                        {{ form.expiry_date }}
+                                        <label for="{{ form.expiry_date.id_for_label }}" class="form-label">
+                                            <i class="fas fa-calendar-alt me-2"></i>Expiry Date
+                                        </label>
+                                        {% if form.expiry_date.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                <i class="fas fa-exclamation-circle me-1"></i>
+                                                {% for error in form.expiry_date.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>Leave blank for no expiry
+                                        </div>
                                     </div>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.emergency_contact_phone.id_for_label }}" class="form-label">
-                                    Emergency Contact Phone
-                                </label>
-                                {{ form.emergency_contact_phone }}
-                                {% if form.emergency_contact_phone.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.emergency_contact_phone.errors %}
-                                            {{ error }}
-                                        {% endfor %}
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="form-floating">
+                                        {{ form.emergency_contact_name }}
+                                        <label for="{{ form.emergency_contact_name.id_for_label }}" class="form-label">
+                                            <i class="fas fa-user-friends me-2"></i>Emergency Contact Name
+                                        </label>
+                                        {% if form.emergency_contact_name.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                <i class="fas fa-exclamation-circle me-1"></i>
+                                                {% for error in form.emergency_contact_name.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
                                     </div>
-                                {% endif %}
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="form-floating">
+                                        {{ form.emergency_contact_phone }}
+                                        <label for="{{ form.emergency_contact_phone.id_for_label }}" class="form-label">
+                                            <i class="fas fa-phone me-2"></i>Emergency Contact Phone
+                                        </label>
+                                        {% if form.emergency_contact_phone.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                <i class="fas fa-exclamation-circle me-1"></i>
+                                                {% for error in form.emergency_contact_phone.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         {% if object %}
-                        <div class="row">
-                            <div class="col-md-12 mb-3">
-                                <div class="form-check">
-                                    {{ form.is_active }}
-                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                                        ID Card is Active
-                                    </label>
-                                </div>
-                                {% if form.is_active.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.is_active.errors %}
-                                            {{ error }}
-                                        {% endfor %}
+                        <!-- Status Section -->
+                        <div class="form-section mb-5">
+                            <div class="section-header mb-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="section-icon me-3">
+                                        <i class="fas fa-toggle-on"></i>
                                     </div>
-                                {% endif %}
-                                <div class="form-text">
-                                    Uncheck to deactivate this ID card.
+                                    <div>
+                                        <h5 class="mb-1 fw-bold text-dark">Card Status</h5>
+                                        <p class="mb-0 text-muted small">Activate or deactivate this ID card</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card border-0 bg-light p-4" style="border-radius: 15px;">
+                                <div class="form-check form-switch">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label fw-semibold" for="{{ form.is_active.id_for_label }}">
+                                        <i class="fas fa-power-off me-2"></i>ID Card is Active
+                                    </label>
+                                    {% if form.is_active.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            <i class="fas fa-exclamation-circle me-1"></i>
+                                            {% for error in form.is_active.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text mt-2">
+                                        <i class="fas fa-info-circle me-1"></i>Toggle to activate or deactivate this ID card
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -164,29 +246,33 @@
 
                         <!-- Non-field errors -->
                         {% if form.non_field_errors %}
-                            <div class="alert alert-danger">
+                            <div class="alert alert-danger border-0 shadow-sm mb-4" style="border-radius: 15px;">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
                                 {% for error in form.non_field_errors %}
                                     {{ error }}
                                 {% endfor %}
                             </div>
                         {% endif %}
 
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'accounts:id_card_list' %}" class="btn btn-outline-secondary">
-                                <i class="fa fa-arrow-left"></i> Back to ID Cards
+                        <!-- Action Buttons -->
+                        <div class="d-flex flex-column flex-md-row gap-3 justify-content-between align-items-center pt-4 border-top">
+                            <a href="{% url 'accounts:id_card_list' %}" class="btn btn-outline-secondary btn-lg px-4 py-3 rounded-pill order-2 order-md-1">
+                                <i class="fas fa-arrow-left me-2"></i> Back to ID Cards
                             </a>
-                            <button type="submit" class="btn {% if object %}btn-warning{% else %}btn-primary{% endif %}">
-                                <i class="fa fa-save"></i> 
+                            <button type="submit" class="btn {% if object %}btn-warning{% else %}btn-primary{% endif %} btn-lg px-5 py-3 rounded-pill shadow-sm order-1 order-md-2">
+                                <i class="fas fa-{% if object %}save{% else %}plus{% endif %} me-2"></i>
                                 {% if object %}Update ID Card{% else %}Create ID Card{% endif %}
                             </button>
                         </div>
                     </form>
                 </div>
-                <div class="card-footer text-muted">
-                    <small>
-                        <i class="fa fa-info-circle"></i>
-                        <strong>Note:</strong> The employee ID will be automatically generated when the ID card is created.
-                    </small>
+                
+                <!-- Card Footer -->
+                <div class="card-footer bg-transparent border-0 text-center py-4">
+                    <div class="d-inline-flex align-items-center text-muted">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        <small class="fw-medium">Employee ID will be automatically generated</small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -194,53 +280,217 @@
 </div>
 
 <style>
-.form-label {
+/* Modern Form Styling */
+.modern-form {
+    position: relative;
+}
+
+.form-section {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.section-header {
+    margin-bottom: 1.5rem;
+}
+
+.section-icon {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+}
+
+.form-floating {
+    position: relative;
+}
+
+.form-floating > .form-control,
+.form-floating > .form-select {
+    height: 4rem;
+    padding: 1.5rem 1rem 0.5rem;
+    border: 2px solid #e9ecef;
+    border-radius: 15px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: #fff;
+}
+
+.form-floating > .form-control:focus,
+.form-floating > .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    transform: translateY(-2px);
+}
+
+.form-floating > label {
+    padding: 1rem 1rem 0.5rem;
     font-weight: 600;
-    color: #374151;
+    color: #6c757d;
+    transition: all 0.3s ease;
 }
 
-.text-danger {
-    font-weight: 500;
-}
-
-.card-header {
-    border-bottom: 2px solid rgba(255,255,255,0.2);
-}
-
-.form-control:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label,
+.form-floating > .form-select ~ label {
+    transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+    color: #667eea;
 }
 
 .btn-primary {
-    background-color: #3b82f6;
-    border-color: #3b82f6;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
 }
 
 .btn-primary:hover {
-    background-color: #2563eb;
-    border-color: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
 }
 
 .btn-warning {
-    background-color: #f59e0b;
-    border-color: #f59e0b;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border: none;
     color: #000;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
 }
 
 .btn-warning:hover {
-    background-color: #d97706;
-    border-color: #d97706;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(245, 158, 11, 0.4);
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
     color: #000;
+}
+
+.btn-outline-secondary {
+    border: 2px solid #6c757d;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(108, 117, 125, 0.2);
+}
+
+.invalid-feedback {
+    display: block !important;
+    background: #fff5f5;
+    border: 1px solid #feb2b2;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.5rem;
+    color: #c53030;
+    font-size: 0.875rem;
+}
+
+.alert {
+    border-radius: 15px !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.form-switch .form-check-input {
+    width: 3rem;
+    height: 1.5rem;
+    border-radius: 3rem;
+    transition: all 0.3s ease;
+}
+
+.form-switch .form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+/* Animation for form sections */
+.form-section {
+    animation: slideInUp 0.6s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 1rem;
+    }
+    
+    .card-body {
+        padding: 2rem 1.5rem !important;
+    }
+    
+    .section-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .btn-lg {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Loading state for submit button */
+.btn[type="submit"]:disabled {
+    position: relative;
+    color: transparent;
+}
+
+.btn[type="submit"]:disabled::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    top: 50%;
+    left: 50%;
+    margin-left: -10px;
+    margin-top: -10px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-focus on first field
-    const firstInput = document.querySelector('input, select, textarea');
+    // Auto-focus on first field with animation
+    const firstInput = document.querySelector('.modern-form input, .modern-form select, .modern-form textarea');
     if (firstInput) {
-        firstInput.focus();
+        setTimeout(() => {
+            firstInput.focus();
+        }, 500);
     }
 
     // Set minimum date for expiry to today
@@ -248,7 +498,117 @@ document.addEventListener('DOMContentLoaded', function() {
     if (expiryInput) {
         const today = new Date().toISOString().split('T')[0];
         expiryInput.min = today;
+        expiryInput.type = 'date';
+    }
+
+    // Form submission loading state
+    const form = document.querySelector('.modern-form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    form.addEventListener('submit', function(e) {
+        if (form.checkValidity()) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="me-2">Processing...</span>';
+        }
+    });
+
+    // Add floating label behavior for select elements
+    const selects = document.querySelectorAll('.form-floating select');
+    selects.forEach(select => {
+        // Trigger label positioning for pre-filled selects
+        if (select.value && select.value !== '') {
+            select.classList.add('has-value');
+        }
+        
+        select.addEventListener('change', function() {
+            if (this.value && this.value !== '') {
+                this.classList.add('has-value');
+            } else {
+                this.classList.remove('has-value');
+            }
+        });
+    });
+
+    // Animate form sections on scroll
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.animationDelay = '0.2s';
+                entry.target.classList.add('animate-in');
+            }
+        });
+    }, observerOptions);
+
+    document.querySelectorAll('.form-section').forEach(section => {
+        observer.observe(section);
+    });
+
+    // Real-time form validation feedback
+    const inputs = document.querySelectorAll('.form-floating input, .form-floating select');
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.value && this.checkValidity()) {
+                this.classList.add('is-valid');
+                this.classList.remove('is-invalid');
+            } else if (this.value && !this.checkValidity()) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+            }
+        });
+
+        input.addEventListener('input', function() {
+            if (this.classList.contains('is-invalid') && this.checkValidity()) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            }
+        });
+    });
+
+    // Phone number formatting for emergency contact
+    const phoneInput = document.getElementById('{{ form.emergency_contact_phone.id_for_label }}');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 6) {
+                value = value.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+            } else if (value.length >= 3) {
+                value = value.replace(/(\d{3})(\d{1,3})/, '($1) $2');
+            }
+            e.target.value = value;
+        });
     }
 });
+
+// Add CSS for enhanced validation states
+const style = document.createElement('style');
+style.textContent = `
+    .form-floating > .form-control.is-valid,
+    .form-floating > .form-select.is-valid {
+        border-color: #198754;
+        box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+    }
+    
+    .form-floating > .form-control.is-invalid,
+    .form-floating > .form-select.is-invalid {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+    
+    .animate-in {
+        animation: slideInUp 0.6s ease-out forwards;
+    }
+    
+    .form-floating > .form-select.has-value ~ label,
+    .form-floating > .form-control:not(:placeholder-shown) ~ label {
+        transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+        color: #667eea;
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}
