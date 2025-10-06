@@ -28,6 +28,41 @@
                         {% endfor %}
                     {% endif %}
 
+                    <!-- Search Box -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <form method="GET" class="d-flex">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fa fa-search"></i>
+                                    </span>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           name="search" 
+                                           value="{{ search_query }}" 
+                                           placeholder="Search by name, username, ID, or department..."
+                                           aria-label="Search ID cards">
+                                    <button class="btn btn-outline-secondary" type="submit">
+                                        Search
+                                    </button>
+                                    {% if search_query %}
+                                        <a href="{% url 'accounts:id_card_list' %}" class="btn btn-outline-danger">
+                                            <i class="fa fa-times"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </form>
+                        </div>
+                        {% if search_query %}
+                            <div class="col-md-6">
+                                <div class="alert alert-info mb-0 d-flex align-items-center">
+                                    <i class="fa fa-info-circle me-2"></i>
+                                    Showing results for: <strong class="ms-1">"{{ search_query }}"</strong>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+
                     {% if id_cards %}
                         <div class="table-responsive">
                             <table class="table table-hover">
@@ -119,7 +154,7 @@
                                 <ul class="pagination justify-content-center">
                                     {% if page_obj.has_previous %}
                                         <li class="page-item">
-                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Previous</a>
                                         </li>
                                     {% endif %}
                                     
@@ -131,7 +166,7 @@
                                     
                                     {% if page_obj.has_next %}
                                         <li class="page-item">
-                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a>
                                         </li>
                                     {% endif %}
                                 </ul>

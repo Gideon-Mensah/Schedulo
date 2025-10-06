@@ -9,6 +9,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
+from django.db.models import Q
 
 from .forms import UserUpdateForm, ProfileForm, CustomPasswordResetForm
 from .models import Profile, User
@@ -102,12 +103,27 @@ class IDCardListView(ListView):
         org = getattr(self.request, 'tenant', None)
         if not org:
             return IDCard.objects.none()
-        return IDCard.objects.filter(organization=org).select_related('user', 'organization')
+        
+        queryset = IDCard.objects.filter(organization=org).select_related('user', 'organization')
+        
+        # Add search functionality
+        search_query = self.request.GET.get('search', '')
+        if search_query:
+            queryset = queryset.filter(
+                Q(user__first_name__icontains=search_query) |
+                Q(user__last_name__icontains=search_query) |
+                Q(user__username__icontains=search_query) |
+                Q(employee_id__icontains=search_query) |
+                Q(department__icontains=search_query)
+            ).distinct()
+        
+        return queryset.order_by('user__first_name', 'user__last_name')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         org = getattr(self.request, 'tenant', None)
         context['organization'] = org
+        context['search_query'] = self.request.GET.get('search', '')
         return context
 
 
@@ -131,7 +147,7 @@ class IDCardCreateView(CreateView):
     model = IDCard
     template_name = 'accounts/id_card_form.html'
     fields = ['user', 'department', 'expiry_date', 'emergency_contact_name', 
-              'emergency_contact_phone', 'blood_type', 'access_level']
+              'emergency_contact_phone', 'access_level']
 
     def form_valid(self, form):
         org = getattr(self.request, 'tenant', None)
@@ -178,7 +194,7 @@ class IDCardUpdateView(UpdateView):
     model = IDCard
     template_name = 'accounts/id_card_form.html'
     fields = ['department', 'expiry_date', 'emergency_contact_name', 
-              'emergency_contact_phone', 'blood_type', 'access_level', 'is_active']
+              'emergency_contact_phone', 'access_level', 'is_active']
 
     def get_queryset(self):
         org = getattr(self.request, 'tenant', None)
