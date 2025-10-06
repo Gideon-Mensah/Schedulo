@@ -50,6 +50,55 @@ Run this command in Render shell to set up initial data:
 python manage.py setup_production_data --admin-password YourSecurePassword123
 ```
 
+This will create:
+- ✅ Delaala Company Limited organization
+- ✅ Admin user (admin/YourSecurePassword123)
+- ✅ 2 Sample employees (john.doe & jane.smith, password: employee123)
+- ✅ Proper organization memberships for ID card creation
+
+### 4. Adding More Employees
+To add additional employees after deployment:
+
+```bash
+python manage.py add_employee \
+  --username new.employee \
+  --email employee@delaala.co.uk \
+  --first-name "New" \
+  --last-name "Employee" \
+  --job-title "Position Title" \
+  --password "employee123"
+```
+
+### 5. Troubleshooting "No Employees" Issue
+If no employees show in the ID card dropdown:
+
+1. **Check if users have organization memberships:**
+   ```bash
+   python manage.py shell
+   >>> from accounts.models import OrgMembership
+   >>> OrgMembership.objects.all().count()
+   ```
+
+2. **List all organization members:**
+   ```bash
+   python manage.py shell
+   >>> from accounts.models import User
+   >>> from core.models import Organization
+   >>> org = Organization.objects.first()
+   >>> users = User.objects.filter(org_memberships__organization=org)
+   >>> for u in users: print(f"{u.username} - {u.first_name} {u.last_name}")
+   ```
+
+3. **Add organization membership manually:**
+   ```bash
+   python manage.py shell
+   >>> from accounts.models import User, OrgMembership
+   >>> from core.models import Organization
+   >>> user = User.objects.get(username='username')
+   >>> org = Organization.objects.first()
+   >>> OrgMembership.objects.create(user=user, organization=org, role='staff')
+   ```
+
 ### 4. Custom Domain Setup (Optional)
 If using portal.delaala.co.uk:
 1. Add domain in Render dashboard

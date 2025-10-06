@@ -91,13 +91,80 @@ class Command(BaseCommand):
         if created:
             self.stdout.write('Created admin organization membership')
 
+        # Create some sample employees for immediate testing
+        self.stdout.write('\nCreating sample employees...')
+        
+        sample_employees = [
+            {
+                'username': 'john.doe',
+                'email': 'john.doe@delaala.co.uk',
+                'first_name': 'John',
+                'last_name': 'Doe',
+                'job_title': 'Software Developer'
+            },
+            {
+                'username': 'jane.smith', 
+                'email': 'jane.smith@delaala.co.uk',
+                'first_name': 'Jane',
+                'last_name': 'Smith',
+                'job_title': 'Marketing Manager'
+            }
+        ]
+
+        for emp_data in sample_employees:
+            # Create employee user
+            employee, created = User.objects.get_or_create(
+                username=emp_data['username'],
+                defaults={
+                    'email': emp_data['email'],
+                    'first_name': emp_data['first_name'],
+                    'last_name': emp_data['last_name'],
+                    'is_staff': False,
+                    'is_superuser': False
+                }
+            )
+            
+            if created:
+                employee.set_password('employee123')
+                employee.save()
+                self.stdout.write(f'Created employee: {employee.first_name} {employee.last_name}')
+            
+            # Update employee profile
+            if hasattr(employee, 'profile'):
+                profile = employee.profile
+                profile.organization = org
+                profile.phone = '+44123456780'
+                profile.job_title = emp_data['job_title']
+                profile.save()
+            
+            # Create employee membership
+            emp_membership, created = OrgMembership.objects.get_or_create(
+                user=employee,
+                organization=org,
+                defaults={'role': 'staff'}
+            )
+            
+            if created:
+                self.stdout.write(f'Created membership for: {employee.username}')
+
         self.stdout.write(self.style.SUCCESS('\n=== SETUP COMPLETE ==='))
         self.stdout.write(f'Organization: {org.name}')
         self.stdout.write(f'Admin username: {admin.username}')
         self.stdout.write(f'Admin email: {admin.email}')
         self.stdout.write(self.style.WARNING(f'Admin password: {options["admin_password"]}'))
-        self.stdout.write(self.style.WARNING('IMPORTANT: Change the admin password after first login!'))
+        
+        # Show available employees for ID cards
+        self.stdout.write('\n=== AVAILABLE EMPLOYEES FOR ID CARDS ===')
+        employees_count = User.objects.filter(org_memberships__organization=org).count()
+        self.stdout.write(f'Total employees in organization: {employees_count}')
+        
+        for user in User.objects.filter(org_memberships__organization=org):
+            job_title = getattr(user.profile, 'job_title', 'No job title') if hasattr(user, 'profile') else 'No profile'
+            self.stdout.write(f'  - {user.first_name} {user.last_name} ({user.username}) - {job_title}')
+        
+        self.stdout.write(self.style.WARNING('\nIMPORTANT: Change the admin password after first login!'))
         self.stdout.write('\nYou can now:')
         self.stdout.write('1. Login as admin')
-        self.stdout.write('2. Create employee users through the admin interface')
-        self.stdout.write('3. Create ID cards for employees')
+        self.stdout.write('2. Go to ID Cards → Create New ID Card')
+        self.stdout.write('3. Select from the available employees')
+        self.stdout.write('4. Create additional employees through Admin → Users')

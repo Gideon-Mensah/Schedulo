@@ -147,9 +147,24 @@ class IDCardCreateView(CreateView):
         org = getattr(self.request, 'tenant', None)
         if org:
             # Only show users who are members of this organization
-            form.fields['user'].queryset = User.objects.filter(
+            queryset = User.objects.filter(
                 org_memberships__organization=org
             ).distinct()
+            form.fields['user'].queryset = queryset
+            
+            # Add some debugging info in development
+            from django.conf import settings
+            if settings.DEBUG:
+                count = queryset.count()
+                print(f"DEBUG: ID Card form - Organization: {org.name}")
+                print(f"DEBUG: Available employees for ID cards: {count}")
+                for user in queryset:
+                    print(f"DEBUG: - {user.first_name} {user.last_name} ({user.username})")
+        else:
+            # If no organization, show empty queryset
+            form.fields['user'].queryset = User.objects.none()
+            if hasattr(settings, 'DEBUG') and settings.DEBUG:
+                print("DEBUG: No organization found in request.tenant")
         return form
 
     def get_success_url(self):
