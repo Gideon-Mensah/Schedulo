@@ -192,6 +192,17 @@
                     <li><a class="dropdown-item" href="{% url 'shifts:admin_add_holiday_request' %}">Add Holiday Request</a></li>
                   </ul>
                 </li>
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle" href="#" id="idCardDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    ID Cards
+                  </a>
+                  <ul class="dropdown-menu" aria-labelledby="idCardDropdown">
+                    <li><a class="dropdown-item" href="{% url 'accounts:id_card_list' %}">
+                      <i class="fa fa-list me-2"></i>All ID Cards</a></li>
+                    <li><a class="dropdown-item" href="{% url 'accounts:id_card_create' %}">
+                      <i class="fa fa-plus me-2"></i>Create ID Card</a></li>
+                  </ul>
+                </li>
                <!-- <li class="nav-item">
                   <a class="nav-link" href="{% url 'admin:index' %}">Admin</a>
                 </li> -->
@@ -226,6 +237,11 @@
               <li class="nav-item">
                 <a class="nav-link {% if url_name == 'my_compliance' %}active{% endif %}" href="{% url 'my_compliance' %}">
                   My Compliance
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if url_name == 'my_id_card' %}active{% endif %}" href="{% url 'accounts:my_id_card' %}">
+                  <i class="fa fa-id-card me-1"></i>My ID Card
                 </a>
               </li>
               {% endif %}

@@ -11,7 +11,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 
 from .forms import UserUpdateForm, ProfileForm, CustomPasswordResetForm
-from .models import Profile
+from .models import Profile, User
 
 def register(request):
     # Block registration on Delaala domain
@@ -76,6 +76,138 @@ class AccountPasswordChangeView(auth_views.PasswordChangeView):
 
 class AccountPasswordChangeDoneView(auth_views.PasswordChangeDoneView):
     template_name = "accounts/password_change_done.html"
+
+
+# ID Card Views
+from django.http import HttpResponse
+from django.template.loader import get_template
+from .models import IDCard, OrgMembership
+from django.contrib.admin.views.decorators import staff_member_required
+from django.utils.decorators import method_decorator
+from django.views.generic import ListView, DetailView, CreateView, UpdateView
+from django.shortcuts import get_object_or_404
+from django.urls import reverse_lazy, reverse
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class IDCardListView(ListView):
+    """List all ID cards for the organization"""
+    model = IDCard
+    template_name = 'accounts/id_card_list.html'
+    context_object_name = 'id_cards'
+    paginate_by = 20
+
+    def get_queryset(self):
+        # Get current organization from middleware
+        org = getattr(self.request, 'tenant', None)
+        if not org:
+            return IDCard.objects.none()
+        return IDCard.objects.filter(organization=org).select_related('user', 'organization')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = getattr(self.request, 'tenant', None)
+        context['organization'] = org
+        return context
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class IDCardDetailView(DetailView):
+    """View individual ID card"""
+    model = IDCard
+    template_name = 'accounts/id_card_detail.html'
+    context_object_name = 'id_card'
+
+    def get_queryset(self):
+        org = getattr(self.request, 'tenant', None)
+        if not org:
+            return IDCard.objects.none()
+        return IDCard.objects.filter(organization=org)
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class IDCardCreateView(CreateView):
+    """Create new ID card for employee"""
+    model = IDCard
+    template_name = 'accounts/id_card_form.html'
+    fields = ['user', 'department', 'expiry_date', 'emergency_contact_name', 
+              'emergency_contact_phone', 'blood_type', 'access_level']
+
+    def form_valid(self, form):
+        org = getattr(self.request, 'tenant', None)
+        if not org:
+            messages.error(self.request, "No organization selected.")
+            return redirect('account_profile')
+        form.instance.organization = org
+        messages.success(self.request, "ID Card created successfully.")
+        return super().form_valid(form)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        org = getattr(self.request, 'tenant', None)
+        if org:
+            # Only show users who are members of this organization
+            form.fields['user'].queryset = User.objects.filter(
+                org_memberships__organization=org
+            ).distinct()
+        return form
+
+    def get_success_url(self):
+        return reverse('accounts:id_card_detail', kwargs={'pk': self.object.pk})
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class IDCardUpdateView(UpdateView):
+    """Update existing ID card"""
+    model = IDCard
+    template_name = 'accounts/id_card_form.html'
+    fields = ['department', 'expiry_date', 'emergency_contact_name', 
+              'emergency_contact_phone', 'blood_type', 'access_level', 'is_active']
+
+    def get_queryset(self):
+        org = getattr(self.request, 'tenant', None)
+        if not org:
+            return IDCard.objects.none()
+        return IDCard.objects.filter(organization=org)
+
+    def form_valid(self, form):
+        messages.success(self.request, "ID Card updated successfully.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('accounts:id_card_detail', kwargs={'pk': self.object.pk})
+
+
+@staff_member_required
+def id_card_print_view(request, pk):
+    """Generate printable ID card"""
+    org = getattr(request, 'tenant', None)
+    if not org:
+        messages.error(request, "No organization selected.")
+        return redirect('accounts:id_card_list')
     
+    id_card = get_object_or_404(IDCard, pk=pk, organization=org)
+    
+    return render(request, 'accounts/id_card_print.html', {
+        'id_card': id_card,
+        'organization': org,
+    })
 
 
+@login_required
+def my_id_card_view(request):
+    """User can view their own ID card"""
+    org = getattr(request, 'tenant', None)
+    if not org:
+        messages.error(request, "No organization selected.")
+        return redirect('account_profile')
+    
+    try:
+        id_card = IDCard.objects.get(user=request.user, organization=org)
+        return render(request, 'accounts/my_id_card.html', {
+            'id_card': id_card,
+            'organization': org,
+        })
+    except IDCard.DoesNotExist:
+        messages.info(request, "You don't have an ID card yet. Please contact your administrator.")
+        return redirect('account_profile')

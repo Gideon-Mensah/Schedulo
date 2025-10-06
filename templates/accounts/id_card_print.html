@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ID Card - {{ id_card.full_name }}</title>
+    <style>
+        /* Print-specific styles */
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none !important; }
+            .id-card { 
+                page-break-inside: avoid;
+                margin: 10mm auto;
+            }
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .print-controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .id-card {
+            width: 85.6mm; /* Standard ID card width */
+            height: 54mm;  /* Standard ID card height */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8mm;
+            position: relative;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            overflow: hidden;
+            color: white;
+        }
+
+        .id-card-front {
+            padding: 3mm;
+            height: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 2mm;
+        }
+
+        .org-logo {
+            font-size: 8px;
+            font-weight: bold;
+            margin-bottom: 1mm;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .org-name {
+            font-size: 6px;
+            opacity: 0.9;
+            margin-bottom: 1mm;
+        }
+
+        .card-body {
+            display: flex;
+            flex: 1;
+            gap: 2mm;
+        }
+
+        .photo-section {
+            width: 15mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .employee-photo {
+            width: 12mm;
+            height: 15mm;
+            border-radius: 1mm;
+            border: 1px solid rgba(255,255,255,0.3);
+            object-fit: cover;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: white;
+        }
+
+        .info-section {
+            flex: 1;
+            padding-left: 1mm;
+        }
+
+        .employee-name {
+            font-size: 7px;
+            font-weight: bold;
+            margin-bottom: 1mm;
+            line-height: 1.2;
+        }
+
+        .employee-id {
+            background: rgba(255,255,255,0.2);
+            padding: 0.5mm 1mm;
+            border-radius: 2mm;
+            font-size: 5px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 1mm;
+        }
+
+        .employee-details {
+            font-size: 4px;
+            line-height: 1.3;
+            opacity: 0.9;
+        }
+
+        .detail-row {
+            margin-bottom: 0.5mm;
+            display: flex;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            min-width: 8mm;
+        }
+
+        .card-footer {
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 1mm;
+            margin-top: 1mm;
+            font-size: 3px;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        .emergency-info {
+            font-size: 3px;
+            line-height: 1.2;
+        }
+
+        /* Back of card */
+        .id-card-back {
+            width: 85.6mm;
+            height: 54mm;
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            border-radius: 8mm;
+            margin: 5mm auto 0;
+            padding: 3mm;
+            box-sizing: border-box;
+            color: white;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .back-header {
+            text-align: center;
+            font-size: 6px;
+            font-weight: bold;
+            margin-bottom: 2mm;
+            text-transform: uppercase;
+        }
+
+        .emergency-section {
+            margin-bottom: 2mm;
+        }
+
+        .emergency-title {
+            font-size: 5px;
+            font-weight: bold;
+            margin-bottom: 1mm;
+            color: #ffeb3b;
+        }
+
+        .emergency-details {
+            font-size: 4px;
+            line-height: 1.3;
+        }
+
+        .security-features {
+            position: absolute;
+            bottom: 2mm;
+            left: 3mm;
+            right: 3mm;
+            font-size: 3px;
+            text-align: center;
+            opacity: 0.7;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 1mm;
+        }
+
+        .qr-placeholder {
+            position: absolute;
+            bottom: 8mm;
+            right: 3mm;
+            width: 8mm;
+            height: 8mm;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 1mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2px;
+        }
+
+        /* Responsive for screen view */
+        @media screen and (max-width: 768px) {
+            .id-card, .id-card-back {
+                transform: scale(1.5);
+                margin: 40px auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Controls -->
+    <div class="print-controls no-print">
+        <h2>ID Card Preview</h2>
+        <p><strong>Employee:</strong> {{ id_card.full_name }} | <strong>Organization:</strong> {{ organization.name }}</p>
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="fa fa-print"></i> Print ID Card
+        </button>
+        <a href="{% url 'accounts:id_card_list' %}" class="btn btn-secondary">
+            <i class="fa fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <!-- Front of ID Card -->
+    <div class="id-card">
+        <div class="id-card-front">
+            <div class="card-header">
+                <div class="org-logo">{{ organization.name|truncatechars:20 }}</div>
+                <div class="org-name">Employee Identification</div>
+            </div>
+
+            <div class="card-body">
+                <div class="photo-section">
+                    {% if id_card.avatar_url %}
+                        <img src="{{ id_card.avatar_url }}" alt="{{ id_card.full_name }}" class="employee-photo">
+                    {% else %}
+                        <div class="employee-photo">
+                            {{ id_card.full_name|first|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="info-section">
+                    <div class="employee-name">{{ id_card.full_name|upper }}</div>
+                    <div class="employee-id">{{ id_card.employee_id }}</div>
+                    
+                    <div class="employee-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Position:</span>
+                            <span>{{ id_card.job_title|default:"Employee" }}</span>
+                        </div>
+                        {% if id_card.department %}
+                        <div class="detail-row">
+                            <span class="detail-label">Dept:</span>
+                            <span>{{ id_card.department|truncatechars:15 }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="detail-row">
+                            <span class="detail-label">Access:</span>
+                            <span>{{ id_card.access_level|default:"Standard" }}</span>
+                        </div>
+                        {% if id_card.phone_number %}
+                        <div class="detail-row">
+                            <span class="detail-label">Phone:</span>
+                            <span>{{ id_card.phone_number }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <div>Issued: {{ id_card.issue_date|date:"M j, Y" }}</div>
+                {% if id_card.expiry_date %}
+                <div>Expires: {{ id_card.expiry_date|date:"M j, Y" }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Back of ID Card -->
+    <div class="id-card-back">
+        <div class="back-header">Important Information</div>
+        
+        {% if id_card.emergency_contact_name or id_card.emergency_contact_phone %}
+        <div class="emergency-section">
+            <div class="emergency-title">🚨 Emergency Contact</div>
+            <div class="emergency-details">
+                {% if id_card.emergency_contact_name %}
+                <div><strong>Name:</strong> {{ id_card.emergency_contact_name }}</div>
+                {% endif %}
+                {% if id_card.emergency_contact_phone %}
+                <div><strong>Phone:</strong> {{ id_card.emergency_contact_phone }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if id_card.blood_type %}
+        <div class="emergency-section">
+            <div class="emergency-title">🩸 Blood Type</div>
+            <div class="emergency-details">
+                <strong>{{ id_card.blood_type }}</strong>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="emergency-section">
+            <div class="emergency-title">📋 Instructions</div>
+            <div class="emergency-details">
+                • This card must be worn visibly during work hours<br>
+                • Report lost or stolen cards immediately<br>
+                • Card is property of {{ organization.name }}<br>
+                • Valid for authorized personnel access only
+            </div>
+        </div>
+
+        <!-- QR Code Placeholder -->
+        <div class="qr-placeholder">
+            QR
+        </div>
+
+        <div class="security-features">
+            ID: {{ id_card.employee_id }} | Valid until {% if id_card.expiry_date %}{{ id_card.expiry_date|date:"M Y" }}{% else %}further notice{% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Auto-print when page loads (optional)
+        // window.onload = function() { window.print(); }
+        
+        // Print function
+        function printCard() {
+            window.print();
+        }
+    </script>
+</body>
+</html>

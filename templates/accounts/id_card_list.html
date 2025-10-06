@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}Employee ID Cards{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fa fa-id-card me-2"></i>Employee ID Cards
+                        {% if organization %}
+                            <small class="d-block text-light">{{ organization.name }}</small>
+                        {% endif %}
+                    </h4>
+                    <a href="{% url 'accounts:id_card_create' %}" class="btn btn-light btn-sm">
+                        <i class="fa fa-plus"></i> Create ID Card
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if id_cards %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Photo</th>
+                                        <th>Employee</th>
+                                        <th>Employee ID</th>
+                                        <th>Department</th>
+                                        <th>Position</th>
+                                        <th>Issue Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for card in id_cards %}
+                                        <tr>
+                                            <td>
+                                                {% if card.avatar_url %}
+                                                    <img src="{{ card.avatar_url }}" 
+                                                         alt="{{ card.full_name }}" 
+                                                         class="rounded-circle" 
+                                                         style="width: 40px; height: 40px; object-fit: cover;">
+                                                {% else %}
+                                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white" 
+                                                         style="width: 40px; height: 40px;">
+                                                        {{ card.full_name|first|upper }}
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <strong>{{ card.full_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ card.user.email }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">{{ card.employee_id }}</span>
+                                            </td>
+                                            <td>{{ card.department|default:"—" }}</td>
+                                            <td>{{ card.job_title|default:"Employee" }}</td>
+                                            <td>{{ card.issue_date|date:"M j, Y" }}</td>
+                                            <td>
+                                                {% if card.is_active %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fa fa-check"></i> Active
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fa fa-times"></i> Inactive
+                                                    </span>
+                                                {% endif %}
+                                                
+                                                {% if card.expiry_date %}
+                                                    {% now "Y-m-d" as today %}
+                                                    {% if card.expiry_date|date:"Y-m-d" < today %}
+                                                        <span class="badge bg-warning text-dark ms-1">
+                                                            <i class="fa fa-exclamation-triangle"></i> Expired
+                                                        </span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a href="{% url 'accounts:id_card_detail' card.pk %}" 
+                                                       class="btn btn-outline-primary" title="View Details">
+                                                        <i class="fa fa-eye"></i>
+                                                    </a>
+                                                    <a href="{% url 'accounts:id_card_edit' card.pk %}" 
+                                                       class="btn btn-outline-warning" title="Edit">
+                                                        <i class="fa fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'accounts:id_card_print' card.pk %}" 
+                                                       class="btn btn-outline-success" 
+                                                       target="_blank" title="Print ID Card">
+                                                        <i class="fa fa-print"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if is_paginated %}
+                            <nav aria-label="ID Cards pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                        </span>
+                                    </li>
+                                    
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fa fa-id-card fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No ID Cards Created</h5>
+                            <p class="text-muted">Create ID cards for your employees to provide them with official identification.</p>
+                            <a href="{% url 'accounts:id_card_create' %}" class="btn btn-primary">
+                                <i class="fa fa-plus"></i> Create First ID Card
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer text-muted d-flex justify-content-between align-items-center">
+                    <small>
+                        <i class="fa fa-info-circle"></i>
+                        Total ID Cards: {{ id_cards.count|default:0 }}
+                    </small>
+                    <small>
+                        Last updated: {% now "M j, Y g:i A" %}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge {
+    font-size: 0.8em;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.btn-group-sm > .btn {
+    font-size: 0.8rem;
+}
+
+.card-header {
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+}
+
+.fa-3x {
+    font-size: 3rem;
+}
+
+.card-header small {
+    font-size: 0.8rem;
+    opacity: 0.9;
+}
+</style>
+{% endblock %}

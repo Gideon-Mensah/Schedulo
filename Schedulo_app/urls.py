@@ -24,6 +24,9 @@ urlpatterns = [
     path("accounts/profile/edit/", accounts_views.profile_edit, name="account_profile_edit"),
     path("accounts/password_change/", accounts_views.AccountPasswordChangeView.as_view(), name="account_password_change"),
     path("accounts/password_change/done/", accounts_views.AccountPasswordChangeDoneView.as_view(), name="account_password_change_done"),
+    
+    # Include accounts app URLs for ID cards
+    path("accounts/", include("accounts.urls")),
 
     # User shift flows
     path("available-shifts/", shift_views.available_shifts, name="available_shifts"),

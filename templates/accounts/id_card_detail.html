@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+
+{% block title %}ID Card Details{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fa fa-id-card me-2"></i>ID Card Details
+                    </h4>
+                    <div>
+                        <a href="{% url 'accounts:id_card_edit' id_card.pk %}" class="btn btn-light btn-sm me-2">
+                            <i class="fa fa-edit"></i> Edit
+                        </a>
+                        <a href="{% url 'accounts:id_card_print' id_card.pk %}" 
+                           class="btn btn-success btn-sm" target="_blank">
+                            <i class="fa fa-print"></i> Print
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="row">
+                        <!-- Employee Information -->
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2 mb-3">Employee Information</h5>
+                            
+                            <div class="d-flex align-items-center mb-3">
+                                {% if id_card.avatar_url %}
+                                    <img src="{{ id_card.avatar_url }}" 
+                                         alt="{{ id_card.full_name }}" 
+                                         class="rounded-circle me-3" 
+                                         style="width: 80px; height: 80px; object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white me-3" 
+                                         style="width: 80px; height: 80px; font-size: 2rem;">
+                                        {{ id_card.full_name|first|upper }}
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <h5 class="mb-1">{{ id_card.full_name }}</h5>
+                                    <p class="text-muted mb-1">{{ id_card.user.email }}</p>
+                                    <span class="badge bg-primary">{{ id_card.employee_id }}</span>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Username:</td>
+                                            <td>{{ id_card.user.username }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">First Name:</td>
+                                            <td>{{ id_card.user.first_name|default:"—" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Last Name:</td>
+                                            <td>{{ id_card.user.last_name|default:"—" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Email:</td>
+                                            <td>{{ id_card.user.email }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Phone:</td>
+                                            <td>{{ id_card.phone_number|default:"—" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Position:</td>
+                                            <td>{{ id_card.job_title|default:"Employee" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Department:</td>
+                                            <td>{{ id_card.department|default:"—" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Access Level:</td>
+                                            <td>{{ id_card.access_level }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- ID Card Information -->
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2 mb-3">ID Card Information</h5>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Employee ID:</td>
+                                            <td>
+                                                <span class="badge bg-info fs-6">{{ id_card.employee_id }}</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Organization:</td>
+                                            <td>{{ id_card.organization.name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Issue Date:</td>
+                                            <td>{{ id_card.issue_date|date:"F j, Y" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Expiry Date:</td>
+                                            <td>
+                                                {% if id_card.expiry_date %}
+                                                    {{ id_card.expiry_date|date:"F j, Y" }}
+                                                    {% now "Y-m-d" as today %}
+                                                    {% if id_card.expiry_date|date:"Y-m-d" < today %}
+                                                        <span class="badge bg-warning text-dark ms-2">
+                                                            <i class="fa fa-exclamation-triangle"></i> Expired
+                                                        </span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="text-muted">No expiry date</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Status:</td>
+                                            <td>
+                                                {% if id_card.is_active %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fa fa-check"></i> Active
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fa fa-times"></i> Inactive
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Created:</td>
+                                            <td>{{ id_card.created_at|date:"F j, Y g:i A" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold text-muted">Last Updated:</td>
+                                            <td>{{ id_card.updated_at|date:"F j, Y g:i A" }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Emergency Contact Information -->
+                            {% if id_card.emergency_contact_name or id_card.emergency_contact_phone %}
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">
+                                    <i class="fa fa-phone"></i> Emergency Contact
+                                </h6>
+                                {% if id_card.emergency_contact_name %}
+                                <div><strong>Name:</strong> {{ id_card.emergency_contact_name }}</div>
+                                {% endif %}
+                                {% if id_card.emergency_contact_phone %}
+                                <div><strong>Phone:</strong> {{ id_card.emergency_contact_phone }}</div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Medical Information -->
+                            {% if id_card.blood_type %}
+                            <div class="alert alert-warning">
+                                <h6 class="alert-heading">
+                                    <i class="fa fa-heartbeat"></i> Medical Information
+                                </h6>
+                                <div><strong>Blood Type:</strong> {{ id_card.blood_type }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{% url 'accounts:id_card_list' %}" class="btn btn-outline-secondary">
+                            <i class="fa fa-arrow-left"></i> Back to ID Cards
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{% url 'accounts:id_card_edit' id_card.pk %}" class="btn btn-warning me-2">
+                            <i class="fa fa-edit"></i> Edit Card
+                        </a>
+                        <a href="{% url 'accounts:id_card_print' id_card.pk %}" 
+                           class="btn btn-success" target="_blank">
+                            <i class="fa fa-print"></i> Print Card
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.table td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: middle;
+}
+
+.table td:first-child {
+    width: 35%;
+}
+
+.alert-heading {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.border-bottom {
+    border-bottom: 2px solid #dee2e6 !important;
+}
+
+.badge.fs-6 {
+    font-size: 0.9rem !important;
+}
+</style>
+{% endblock %}
