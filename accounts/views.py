@@ -157,7 +157,7 @@ class IDCardCreateView(CreateView):
             if settings.DEBUG:
                 count = queryset.count()
                 print(f"DEBUG: ID Card form - Organization: {org.name}")
-                print(f"DEBUG: Available employees for ID cards: {count}")
+                print(f"DEBUG: Available users for ID cards: {count}")
                 for user in queryset:
                     print(f"DEBUG: - {user.first_name} {user.last_name} ({user.username})")
         else:

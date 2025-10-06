@@ -91,10 +91,10 @@ class Command(BaseCommand):
         if created:
             self.stdout.write('Created admin organization membership')
 
-        # Create some sample employees for immediate testing
-        self.stdout.write('\nCreating sample employees...')
+        # Create some sample users for immediate testing
+        self.stdout.write('\nCreating sample users...')
         
-        sample_employees = [
+        sample_users = [
             {
                 'username': 'john.doe',
                 'email': 'john.doe@delaala.co.uk',
@@ -111,41 +111,41 @@ class Command(BaseCommand):
             }
         ]
 
-        for emp_data in sample_employees:
-            # Create employee user
-            employee, created = User.objects.get_or_create(
-                username=emp_data['username'],
+        for user_data in sample_users:
+            # Create user
+            user, created = User.objects.get_or_create(
+                username=user_data['username'],
                 defaults={
-                    'email': emp_data['email'],
-                    'first_name': emp_data['first_name'],
-                    'last_name': emp_data['last_name'],
+                    'email': user_data['email'],
+                    'first_name': user_data['first_name'],
+                    'last_name': user_data['last_name'],
                     'is_staff': False,
                     'is_superuser': False
                 }
             )
             
             if created:
-                employee.set_password('employee123')
-                employee.save()
-                self.stdout.write(f'Created employee: {employee.first_name} {employee.last_name}')
+                user.set_password('user123')
+                user.save()
+                self.stdout.write(f'Created user: {user.first_name} {user.last_name}')
             
-            # Update employee profile
-            if hasattr(employee, 'profile'):
-                profile = employee.profile
+            # Update user profile
+            if hasattr(user, 'profile'):
+                profile = user.profile
                 profile.organization = org
                 profile.phone = '+44123456780'
-                profile.job_title = emp_data['job_title']
+                profile.job_title = user_data['job_title']
                 profile.save()
             
-            # Create employee membership
-            emp_membership, created = OrgMembership.objects.get_or_create(
-                user=employee,
+            # Create user membership
+            user_membership, created = OrgMembership.objects.get_or_create(
+                user=user,
                 organization=org,
                 defaults={'role': 'staff'}
             )
             
             if created:
-                self.stdout.write(f'Created membership for: {employee.username}')
+                self.stdout.write(f'Created membership for: {user.username}')
 
         self.stdout.write(self.style.SUCCESS('\n=== SETUP COMPLETE ==='))
         self.stdout.write(f'Organization: {org.name}')
@@ -153,10 +153,10 @@ class Command(BaseCommand):
         self.stdout.write(f'Admin email: {admin.email}')
         self.stdout.write(self.style.WARNING(f'Admin password: {options["admin_password"]}'))
         
-        # Show available employees for ID cards
-        self.stdout.write('\n=== AVAILABLE EMPLOYEES FOR ID CARDS ===')
-        employees_count = User.objects.filter(org_memberships__organization=org).count()
-        self.stdout.write(f'Total employees in organization: {employees_count}')
+        # Show available users for ID cards
+        self.stdout.write('\n=== AVAILABLE USERS FOR ID CARDS ===')
+        users_count = User.objects.filter(org_memberships__organization=org).count()
+        self.stdout.write(f'Total users in organization: {users_count}')
         
         for user in User.objects.filter(org_memberships__organization=org):
             job_title = getattr(user.profile, 'job_title', 'No job title') if hasattr(user, 'profile') else 'No profile'
@@ -166,5 +166,5 @@ class Command(BaseCommand):
         self.stdout.write('\nYou can now:')
         self.stdout.write('1. Login as admin')
         self.stdout.write('2. Go to ID Cards → Create New ID Card')
-        self.stdout.write('3. Select from the available employees')
-        self.stdout.write('4. Create additional employees through Admin → Users')
+        self.stdout.write('3. Select from the available users')
+        self.stdout.write('4. Create additional users through Admin → Users')

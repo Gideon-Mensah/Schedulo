@@ -52,7 +52,7 @@ class OrgMembership(models.Model):
 
 
 class IDCard(models.Model):
-    """ID Card model for employee identification"""
+    """ID Card model for user identification"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="id_cards")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="id_cards")
     employee_id = models.CharField(max_length=20, unique=True, blank=True)

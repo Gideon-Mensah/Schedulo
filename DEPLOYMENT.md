@@ -53,24 +53,24 @@ python manage.py setup_production_data --admin-password YourSecurePassword123
 This will create:
 - ✅ Delaala Company Limited organization
 - ✅ Admin user (admin/YourSecurePassword123)
-- ✅ 2 Sample employees (john.doe & jane.smith, password: employee123)
+- ✅ 2 Sample users (john.doe & jane.smith, password: user123)
 - ✅ Proper organization memberships for ID card creation
 
-### 4. Adding More Employees
-To add additional employees after deployment:
+### 4. Adding More Users
+To add additional users after deployment:
 
 ```bash
-python manage.py add_employee \
-  --username new.employee \
-  --email employee@delaala.co.uk \
+python manage.py add_user \
+  --username new.user \
+  --email user@delaala.co.uk \
   --first-name "New" \
-  --last-name "Employee" \
+  --last-name "User" \
   --job-title "Position Title" \
-  --password "employee123"
+  --password "user123"
 ```
 
-### 5. Troubleshooting "No Employees" Issue
-If no employees show in the ID card dropdown:
+### 5. Troubleshooting "No Users" Issue
+If no users show in the ID card dropdown:
 
 1. **Check if users have organization memberships:**
    ```bash
