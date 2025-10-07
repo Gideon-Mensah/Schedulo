@@ -5,6 +5,8 @@
 {% endblock %}
 
 {% block extra_head %}
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
@@ -288,11 +290,14 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+// Wait for both jQuery and DOM to be ready
+$(document).ready(function() {
+    console.log('Initializing Select2 for employee dropdown...');
+    
     // Initialize Select2 for the employee dropdown
-    const userSelect = document.getElementById('{{ form.user.id_for_label }}');
-    if (userSelect) {
-        $(userSelect).select2({
+    const userSelect = $('#{{ form.user.id_for_label }}');
+    if (userSelect.length) {
+        userSelect.select2({
             theme: 'bootstrap-5',
             placeholder: 'Search and select an employee...',
             allowClear: true,
@@ -321,23 +326,26 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        console.log('Select2 initialized successfully');
+
         // Focus on Select2 instead of regular input
         setTimeout(function() {
             $('.select2-selection').focus();
         }, 100);
     } else {
+        console.log('Employee select field not found');
         // Auto-focus on first field if not employee select
-        const firstInput = document.querySelector('input, select, textarea');
-        if (firstInput) {
+        const firstInput = $('input, select, textarea').first();
+        if (firstInput.length) {
             firstInput.focus();
         }
     }
 
     // Set minimum date for expiry to today
-    const expiryInput = document.getElementById('{{ form.expiry_date.id_for_label }}');
-    if (expiryInput) {
+    const expiryInput = $('#{{ form.expiry_date.id_for_label }}');
+    if (expiryInput.length) {
         const today = new Date().toISOString().split('T')[0];
-        expiryInput.min = today;
+        expiryInput.attr('min', today);
     }
 
     // Enhanced form validation for Select2
@@ -353,6 +361,44 @@ document.addEventListener('DOMContentLoaded', function() {
     $('#{{ form.user.id_for_label }}').on('change', function() {
         $(this).next('.select2-container').removeClass('is-invalid');
     });
+});
+
+// Fallback for if jQuery/Select2 fails to load
+document.addEventListener('DOMContentLoaded', function() {
+    // Only run fallback if Select2 didn't initialize
+    setTimeout(function() {
+        const userSelect = document.getElementById('{{ form.user.id_for_label }}');
+        if (userSelect && !userSelect.classList.contains('select2-hidden-accessible')) {
+            console.log('Select2 failed to load, using fallback search');
+            
+            // Add a search input above the select
+            const searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.className = 'form-control mb-2';
+            searchInput.placeholder = 'Type to search employees...';
+            searchInput.style.display = 'block';
+            
+            userSelect.parentNode.insertBefore(searchInput, userSelect);
+            
+            // Store original options
+            const originalOptions = Array.from(userSelect.options);
+            
+            // Add search functionality
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                
+                // Clear current options
+                userSelect.innerHTML = '<option value="">---------</option>';
+                
+                // Filter and add matching options
+                originalOptions.forEach(option => {
+                    if (option.value === '' || option.text.toLowerCase().includes(searchTerm)) {
+                        userSelect.appendChild(option.cloneNode(true));
+                    }
+                });
+            });
+        }
+    }, 1000);
 });
 </script>
 {% endblock %}
