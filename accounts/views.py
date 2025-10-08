@@ -209,9 +209,9 @@ def id_card_print_view(request, pk):
     id_card = get_object_or_404(IDCard, pk=pk, organization=org)
     
     # Generate QR code for verification URL
-    # This could link to a verification endpoint or contain card data
-    verification_data = f"ID:{id_card.employee_id}|ORG:{org.name}|NAME:{id_card.user.get_full_name()}"
-    qr_data_uri = _qr_data_uri(verification_data)
+    verify_path = reverse("accounts:id_card_verify", args=[id_card.employee_id])
+    absolute_url = request.build_absolute_uri(verify_path)
+    qr_data_uri = _qr_data_uri(absolute_url)
     
     return render(request, 'accounts/id_card_print.html', {
         'id_card': id_card,
@@ -311,3 +311,23 @@ def _qr_data_uri(payload: str, box_size=8, border=2) -> str:
     except ImportError:
         # Fallback if qrcode library not available
         return None
+
+@login_required
+def id_card_verify(request, employee_id):
+    """Simple ID card verification endpoint for QR codes"""
+    try:
+        id_card = IDCard.objects.select_related('user', 'organization').get(
+            employee_id=employee_id,
+            is_active=True
+        )
+        
+        return render(request, 'accounts/id_card_verify.html', {
+            'id_card': id_card,
+            'organization': id_card.organization,
+            'is_valid': True,
+        })
+    except IDCard.DoesNotExist:
+        return render(request, 'accounts/id_card_verify.html', {
+            'employee_id': employee_id,
+            'is_valid': False,
+        })

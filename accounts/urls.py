@@ -14,4 +14,7 @@ urlpatterns = [
     
     # AJAX API for employee search
     path('api/employee-search/', views.employee_search, name='employee_search'),
+
+    # QR Code verification
+    path('verify/<str:employee_id>/', views.id_card_verify, name='id_card_verify'),
 ]
