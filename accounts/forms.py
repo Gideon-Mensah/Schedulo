@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, SetPasswordForm
-from .models import User
+from .models import User, IDCard
 
 class UserRegisterForm(UserCreationForm):
     def __init__(self, *args, **kwargs):
@@ -66,5 +66,40 @@ class CustomPasswordResetForm(SetPasswordForm):
         self.fields['new_password1'].help_text = (
             'Your password must contain at least 8 characters and cannot be entirely numeric.'
         )
+
+
+class IDCardForm(forms.ModelForm):
+    """Form for creating and updating ID cards with proper widgets and Bootstrap classes."""
+    
+    class Meta:
+        model = IDCard
+        fields = ['user', 'department', 'expiry_date', 'emergency_contact_name', 'emergency_contact_phone', 'access_level']
+        widgets = {
+            'user': forms.Select(attrs={'class': 'form-control'}),
+            'department': forms.TextInput(attrs={'class': 'form-control'}),
+            'expiry_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'emergency_contact_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'emergency_contact_phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'access_level': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        # Extract organization from kwargs if provided
+        organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filter employees by organization if provided
+        if organization:
+            self.fields['user'].queryset = User.objects.filter(
+                profile__organization=organization
+            ).select_related('profile').order_by('first_name', 'last_name')
+        
+        # Add better labels and help text
+        self.fields['user'].help_text = "Select the employee this ID card belongs to"
+        self.fields['department'].help_text = "Employee's department or division"
+        self.fields['expiry_date'].help_text = "When this ID card expires (optional)"
+        self.fields['emergency_contact_name'].help_text = "Emergency contact full name"
+        self.fields['emergency_contact_phone'].help_text = "Emergency contact phone number"
+        self.fields['access_level'].help_text = "Access permissions level"
 
 

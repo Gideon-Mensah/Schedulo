@@ -11,7 +11,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.db.models import Q
 
-from .forms import UserUpdateForm, ProfileForm, CustomPasswordResetForm
+from .forms import UserUpdateForm, ProfileForm, CustomPasswordResetForm, IDCardForm
 from .models import Profile, User
 
 def register(request):
@@ -145,9 +145,8 @@ class IDCardDetailView(DetailView):
 class IDCardCreateView(CreateView):
     """Create new ID card for employee"""
     model = IDCard
+    form_class = IDCardForm
     template_name = 'accounts/id_card_form.html'
-    fields = ['user', 'department', 'expiry_date', 'emergency_contact_name', 
-              'emergency_contact_phone', 'access_level']
 
     def form_valid(self, form):
         org = getattr(self.request, 'tenant', None)
@@ -158,31 +157,12 @@ class IDCardCreateView(CreateView):
         messages.success(self.request, "ID Card created successfully.")
         return super().form_valid(form)
 
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
         org = getattr(self.request, 'tenant', None)
         if org:
-            # Use the same user filtering as shift booking system
-            # This filters users by profile.organization instead of org_memberships
-            queryset = User.objects.filter(
-                profile__organization=org
-            ).order_by('first_name', 'last_name')
-            form.fields['user'].queryset = queryset
-            
-            # Add some debugging info in development
-            from django.conf import settings
-            if settings.DEBUG:
-                count = queryset.count()
-                print(f"DEBUG: ID Card form - Organization: {org.name}")
-                print(f"DEBUG: Available users for ID cards: {count}")
-                for user in queryset:
-                    print(f"DEBUG: - {user.first_name} {user.last_name} ({user.username})")
-        else:
-            # If no organization, show empty queryset
-            form.fields['user'].queryset = User.objects.none()
-            if hasattr(settings, 'DEBUG') and settings.DEBUG:
-                print("DEBUG: No organization found in request.tenant")
-        return form
+            kwargs['organization'] = org
+        return kwargs
 
     def get_success_url(self):
         return reverse('accounts:id_card_detail', kwargs={'pk': self.object.pk})
@@ -192,15 +172,21 @@ class IDCardCreateView(CreateView):
 class IDCardUpdateView(UpdateView):
     """Update existing ID card"""
     model = IDCard
+    form_class = IDCardForm
     template_name = 'accounts/id_card_form.html'
-    fields = ['department', 'expiry_date', 'emergency_contact_name', 
-              'emergency_contact_phone', 'access_level', 'is_active']
 
     def get_queryset(self):
         org = getattr(self.request, 'tenant', None)
         if not org:
             return IDCard.objects.none()
         return IDCard.objects.filter(organization=org)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        org = getattr(self.request, 'tenant', None)
+        if org:
+            kwargs['organization'] = org
+        return kwargs
 
     def form_valid(self, form):
         messages.success(self.request, "ID Card updated successfully.")

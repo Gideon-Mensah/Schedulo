@@ -1,7 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    {% if object %}Edit ID Card{% else %}Create ID Card{% endif %}
+    {% if obje                                <label for="{{ form.user.id_for_label }}" class="form-label">
+                                    <i class="fas fa-user me-2"></i>Employee <span class="text-danger">*</span>
+                                </label>
+                                {{ form.user }}
+                                {% if form.user.errors %}Edit ID Card{% else %}Create ID Card{% endif %}
 {% endblock %}
 
 {% block extra_head %}
@@ -10,6 +14,17 @@
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
+<!-- Font Awesome (for .fa /.fas icons) -->
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      integrity="sha512-SnH5WK+bZxgPHs44uWIX+LRMU9BEhXlhcOaAP0R6UHq2WJSPpYJr1lJIhm6tPWfDo5qzKXSdm0JJXvKe8+DG4Q=="
+      crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<!-- Bootstrap Bundle JS (for alerts, dismiss, etc.) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
 {% endblock %}
 
 {% block content %}
@@ -114,7 +129,7 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
-                                </div>
+                                <!-- Reserved for future field -->
                             </div>
                         </div>
 
@@ -319,12 +334,14 @@ $(document).ready(function() {
                 return $option;
             },
             templateSelection: function(option) {
-                if (!option.id) {
-                    return option.text;
-                }
-                return option.text;
+                return option.text || option.id;
             }
         });
+
+        // If Django sent errors for `user`, reflect that in UI
+        {% if form.user.errors %}
+            userSelect.next('.select2-container').addClass('is-invalid');
+        {% endif %}
 
         console.log('Select2 initialized successfully');
 
@@ -341,9 +358,9 @@ $(document).ready(function() {
         }
     }
 
-    // Set minimum date for expiry to today
+    // Set minimum date for expiry to today (works if widget is <input type="date">)
     const expiryInput = $('#{{ form.expiry_date.id_for_label }}');
-    if (expiryInput.length) {
+    if (expiryInput.length && expiryInput.attr('type') === 'date') {
         const today = new Date().toISOString().split('T')[0];
         expiryInput.attr('min', today);
     }
