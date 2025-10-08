@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, SetPasswordForm
+from django.urls import reverse_lazy
 from .models import User, IDCard
 
 class UserRegisterForm(UserCreationForm):
@@ -69,13 +70,22 @@ class CustomPasswordResetForm(SetPasswordForm):
 
 
 class IDCardForm(forms.ModelForm):
-    """Form for creating and updating ID cards with proper widgets and Bootstrap classes."""
+    """Form for creating and updating ID cards with AJAX-powered searchable employee selection."""
+    
+    user = forms.ModelChoiceField(
+        queryset=User.objects.none(),  # Empty queryset for AJAX loading
+        widget=forms.Select(attrs={
+            "class": "form-control",
+            "data-ajax--url": reverse_lazy("accounts:employee_search"),
+            "data-placeholder": "Search and select an employee...",
+        }),
+        help_text="Start typing to search for employees by name, username, or email"
+    )
     
     class Meta:
         model = IDCard
         fields = ['user', 'department', 'expiry_date', 'emergency_contact_name', 'emergency_contact_phone', 'access_level']
         widgets = {
-            'user': forms.Select(attrs={'class': 'form-control'}),
             'department': forms.TextInput(attrs={'class': 'form-control'}),
             'expiry_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'emergency_contact_name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -84,18 +94,31 @@ class IDCardForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
-        # Extract organization from kwargs if provided
-        organization = kwargs.pop('organization', None)
+        # Extract organization and request from kwargs if provided
+        self.organization = kwargs.pop('organization', None)
+        self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
         
-        # Filter employees by organization if provided
-        if organization:
-            self.fields['user'].queryset = User.objects.filter(
-                profile__organization=organization
-            ).select_related('profile').order_by('first_name', 'last_name')
+        # Ensure the selected user is available to the field (for editing or POST back)
+        selected_id = None
+        if self.data.get("user"):
+            selected_id = self.data.get("user")
+        elif getattr(self.instance, "user_id", None):
+            selected_id = self.instance.user_id
+
+        if selected_id:
+            # Load only the selected user for the queryset
+            if self.organization:
+                self.fields["user"].queryset = User.objects.filter(
+                    pk=selected_id,
+                    profile__organization=self.organization
+                )
+            else:
+                self.fields["user"].queryset = User.objects.filter(pk=selected_id)
+        else:
+            self.fields["user"].queryset = User.objects.none()
         
-        # Add better labels and help text
-        self.fields['user'].help_text = "Select the employee this ID card belongs to"
+        # Add better help text
         self.fields['department'].help_text = "Employee's department or division"
         self.fields['expiry_date'].help_text = "When this ID card expires (optional)"
         self.fields['emergency_contact_name'].help_text = "Emergency contact full name"

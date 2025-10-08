@@ -11,4 +11,7 @@ urlpatterns = [
     path('id-cards/<int:pk>/edit/', views.IDCardUpdateView.as_view(), name='id_card_edit'),
     path('id-cards/<int:pk>/print/', views.id_card_print_view, name='id_card_print'),
     path('my-id-card/', views.my_id_card_view, name='my_id_card'),
+    
+    # AJAX API for employee search
+    path('api/employee-search/', views.employee_search, name='employee_search'),
 ]

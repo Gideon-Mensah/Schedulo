@@ -307,31 +307,49 @@
 <script>
 // Wait for both jQuery and DOM to be ready
 $(document).ready(function() {
-    console.log('Initializing Select2 for employee dropdown...');
+    console.log('Initializing AJAX-powered Select2 for employee dropdown...');
     
-    // Initialize Select2 for the employee dropdown
+    // Initialize Select2 with AJAX for the employee dropdown
     const userSelect = $('#{{ form.user.id_for_label }}');
     if (userSelect.length) {
         userSelect.select2({
             theme: 'bootstrap-5',
-            placeholder: 'Search and select an employee...',
+            placeholder: userSelect.data('placeholder') || 'Search and select an employee...',
             allowClear: true,
             width: '100%',
+            ajax: {
+                url: userSelect.data('ajax--url'),
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term || '',
+                        page: params.page || 1
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.results,
+                        pagination: {
+                            more: data.pagination && data.pagination.more
+                        }
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 1,
             templateResult: function(option) {
                 if (!option.id) {
                     return option.text;
                 }
                 
                 // Custom formatting for search results
-                const $option = $(
+                return $(
                     '<div class="d-flex align-items-center">' +
                         '<i class="fas fa-user me-2 text-muted"></i>' +
-                        '<div>' +
-                            '<div class="fw-semibold">' + option.text + '</div>' +
-                        '</div>' +
+                        '<div class="fw-semibold">' + option.text + '</div>' +
                     '</div>'
                 );
-                return $option;
             },
             templateSelection: function(option) {
                 return option.text || option.id;
@@ -343,7 +361,7 @@ $(document).ready(function() {
             userSelect.next('.select2-container').addClass('is-invalid');
         {% endif %}
 
-        console.log('Select2 initialized successfully');
+        console.log('AJAX Select2 initialized successfully');
 
         // Focus on Select2 instead of regular input
         setTimeout(function() {

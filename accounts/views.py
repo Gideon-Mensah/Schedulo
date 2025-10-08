@@ -162,6 +162,7 @@ class IDCardCreateView(CreateView):
         org = getattr(self.request, 'tenant', None)
         if org:
             kwargs['organization'] = org
+        kwargs['request'] = self.request
         return kwargs
 
     def get_success_url(self):
@@ -186,6 +187,7 @@ class IDCardUpdateView(UpdateView):
         org = getattr(self.request, 'tenant', None)
         if org:
             kwargs['organization'] = org
+        kwargs['request'] = self.request
         return kwargs
 
     def form_valid(self, form):
@@ -229,3 +231,60 @@ def my_id_card_view(request):
     except IDCard.DoesNotExist:
         messages.info(request, "You don't have an ID card yet. Please contact your administrator.")
         return redirect('account_profile')
+
+
+@login_required
+def employee_search(request):
+    """AJAX endpoint for searching employees with pagination"""
+    from django.http import JsonResponse
+    
+    q = (request.GET.get("q") or "").strip()
+    page = int(request.GET.get("page", 1))
+    page_size = 20
+
+    # Get current organization from tenant middleware
+    org = getattr(request, 'tenant', None)
+    if not org:
+        return JsonResponse({"results": [], "pagination": {"more": False}})
+
+    # Filter users by organization and active status
+    qs = User.objects.filter(
+        is_active=True,
+        profile__organization=org
+    ).select_related('profile')
+
+    # Apply search filter if query provided
+    if q:
+        qs = qs.filter(
+            Q(username__icontains=q) |
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q) |
+            Q(email__icontains=q)
+        )
+
+    total = qs.count()
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    results = []
+    for user in qs.order_by("first_name", "last_name")[start:end]:
+        # Create a nice display name
+        full_name = user.get_full_name()
+        if full_name:
+            display_text = f"{full_name} ({user.username})"
+        else:
+            display_text = user.username
+            
+        # Add department info if available
+        if hasattr(user, 'profile') and user.profile.job_title:
+            display_text += f" - {user.profile.job_title}"
+            
+        results.append({
+            "id": str(user.pk),
+            "text": display_text
+        })
+
+    return JsonResponse({
+        "results": results,
+        "pagination": {"more": end < total}
+    })
