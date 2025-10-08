@@ -1,73 +1,90 @@
-<!-- Debug template for ID card form testing -->
+<!-- templates/accounts/id_card_form_debug.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>ID Card Form Debug</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
-        .error { color: red; }
-        .success { color: green; }
-        ul { margin: 10px 0; }
-    </style>
+  <meta charset="utf-8" />
+  <title>ID Card Form Debug</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
+    .error { color: #b00020; }
+    .success { color: #0b6e0b; }
+    ul { margin: 10px 0; padding-left: 20px; }
+    code { background:#f6f8fa; padding:2px 4px; border-radius:4px; }
+  </style>
 </head>
 <body>
-    <h1>ID Card Form Debug Information</h1>
-    
-    <div class="section">
-        <h2>Request Information</h2>
+  <h1>ID Card Form Debug Information</h1>
+
+  <div class="section" aria-labelledby="request-info">
+    <h2 id="request-info">Request Information</h2>
+    <ul>
+      <li>
+        <strong>Current User:</strong>
+        {{ request_user.username|default:"—" }}
+        ({{ request_user.first_name|default:"" }} {{ request_user.last_name|default:"" }})
+      </li>
+      <li><strong>Is Staff:</strong> {{ is_staff|yesno:"Yes,No,Unknown" }}</li>
+      <li><strong>Is Superuser:</strong> {{ is_superuser|yesno:"Yes,No,Unknown" }}</li>
+      <li><strong>Tenant Organization:</strong> {{ tenant_org_name|default:"—" }}</li>
+    </ul>
+  </div>
+
+  <div class="section" aria-labelledby="org-context">
+    <h2 id="org-context">Organization Context</h2>
+    {% if tenant_org %}
+      <p class="success">✅ Tenant organization found: {{ tenant_org.name }}</p>
+    {% else %}
+      <p class="error">❌ No tenant organization set</p>
+      {% if error %}
+        <p class="error">Error: {{ error }}</p>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  <div class="section" aria-labelledby="available-users">
+    <h2 id="available-users">Available Users for ID Cards</h2>
+    {% with count=available_users|length %}
+      <p><strong>Count:</strong> {{ count }}</p>
+
+      {% if count %}
+        <p class="success">✅ Users that would appear in the dropdown:</p>
         <ul>
-            <li><strong>Current User:</strong> {{ request_user.username }} ({{ request_user.first_name }} {{ request_user.last_name }})</li>
-            <li><strong>Is Staff:</strong> {{ is_staff }}</li>
-            <li><strong>Is Superuser:</strong> {{ is_superuser }}</li>
-            <li><strong>Tenant Organization:</strong> {{ tenant_org_name }}</li>
+          {% for user in available_users %}
+            <li>
+              {{ user.get_full_name|default:user.username }} ({{ user.username }}) — {{ user.email|default:"no email" }}
+            </li>
+          {% endfor %}
         </ul>
-    </div>
+      {% else %}
+        <p class="error">❌ No users would appear in the dropdown</p>
+      {% endif %}
+    {% endwith %}
+  </div>
 
-    <div class="section">
-        <h2>Organization Context</h2>
-        {% if tenant_org %}
-            <p class="success">✅ Tenant organization found: {{ tenant_org.name }}</p>
-        {% else %}
-            <p class="error">❌ No tenant organization set</p>
-            {% if error %}
-                <p class="error">Error: {{ error }}</p>
-            {% endif %}
-        {% endif %}
-    </div>
-
-    <div class="section">
-        <h2>Available Users for ID Cards</h2>
-        <p><strong>Count:</strong> {{ user_count }}</p>
-        
-        {% if user_count > 0 %}
-            <p class="success">✅ Users that would appear in dropdown:</p>
-            <ul>
-            {% for user in available_users %}
-                <li>{{ user.first_name }} {{ user.last_name }} ({{ user.username }}) - {{ user.email }}</li>
-            {% endfor %}
-            </ul>
-        {% else %}
-            <p class="error">❌ No users would appear in the dropdown</p>
-        {% endif %}
-    </div>
-
-    <div class="section">
-        <h2>All Organizations</h2>
-        <ul>
+  <div class="section" aria-labelledby="all-orgs">
+    <h2 id="all-orgs">All Organizations</h2>
+    {% if all_orgs %}
+      <ul>
         {% for org in all_orgs %}
-            <li>{{ org.name }} (ID: {{ org.id }})</li>
+          <li>{{ org.name }} (ID: {{ org.id }})</li>
         {% endfor %}
-        </ul>
-    </div>
+      </ul>
+    {% else %}
+      <p>None found.</p>
+    {% endif %}
+  </div>
 
-    <div class="section">
-        <h2>Quick Actions</h2>
-        <ul>
-            <li><a href="/accounts/id-cards/">Go to ID Card List</a></li>
-            <li><a href="/accounts/id-cards/create/">Go to Create ID Card</a></li>
-            <li><a href="/admin/">Go to Admin</a></li>
-        </ul>
-    </div>
+  <div class="section" aria-labelledby="quick-actions">
+    <h2 id="quick-actions">Quick Actions</h2>
+    <ul>
+      <li><a href="{% url 'idcard_list' %}">Go to ID Card List</a></li>
+      <li><a href="{% url 'idcard_create' %}">Go to Create ID Card</a></li>
+      {% if request_user.is_staff %}
+        <li><a href="{% url 'admin:index' %}">Go to Admin</a></li>
+      {% endif %}
+    </ul>
+  </div>
 </body>
 </html>
