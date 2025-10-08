@@ -92,6 +92,20 @@
             display: flex; align-items: center; justify-content: center;
         }
 
+        /* Optional: Multiple cards per A4 sheet */
+        .sheet { width: 210mm; margin: 0 auto; }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, var(--card-w));
+            gap: 6mm 8mm;
+            justify-content: center;
+            align-items: start;
+            padding: 10mm 0;
+        }
+        @media print {
+            .sheet { width: auto; }
+        }
+
         /* Screen preview convenience */
         @media screen and (max-width: 768px) {
             .id-card, .id-card-back { transform: scale(1.5); transform-origin: top center; margin: 40px auto; }
