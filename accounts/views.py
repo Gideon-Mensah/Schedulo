@@ -200,7 +200,7 @@ class IDCardUpdateView(UpdateView):
 
 @staff_member_required
 def id_card_print_view(request, pk):
-    """Generate printable ID card"""
+    """Generate printable ID card with QR code"""
     org = getattr(request, 'tenant', None)
     if not org:
         messages.error(request, "No organization selected.")
@@ -208,9 +208,15 @@ def id_card_print_view(request, pk):
     
     id_card = get_object_or_404(IDCard, pk=pk, organization=org)
     
+    # Generate QR code for verification URL
+    # This could link to a verification endpoint or contain card data
+    verification_data = f"ID:{id_card.employee_id}|ORG:{org.name}|NAME:{id_card.user.get_full_name()}"
+    qr_data_uri = _qr_data_uri(verification_data)
+    
     return render(request, 'accounts/id_card_print.html', {
         'id_card': id_card,
         'organization': org,
+        'qr_data_uri': qr_data_uri,
     })
 
 
@@ -288,3 +294,20 @@ def employee_search(request):
         "results": results,
         "pagination": {"more": end < total}
     })
+
+def _qr_data_uri(payload: str, box_size=8, border=2) -> str:
+    """Generate a high-resolution QR code as a data URI for embedding in templates"""
+    try:
+        import qrcode
+        from qrcode.image.pil import PilImage
+        import io
+        import base64
+        
+        img = qrcode.make(payload, image_factory=PilImage, box_size=box_size, border=border)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        return f"data:image/png;base64,{b64}"
+    except ImportError:
+        # Fallback if qrcode library not available
+        return None
